@@ -170,7 +170,7 @@ describe("GOLD data", async function () {
     await auctionContract.buy({ value: toWei("4") });
   });
 
-  it("Correctly tracks token data", async function () {
+  it("Correctly tracks token metrics", async function () {
     const [addy1, addy2] = await ethers.getSigners();
     await contract.transferFrom(addy1.address, addy2.address, 0);
     await contract.connect(addy2).transferFrom(addy2.address, addy1.address, 0);
@@ -185,7 +185,24 @@ describe("GOLD data", async function () {
       to: contract.address,
       value: toWei("1"),
     });
-    const totalEthReceived = await contract.totalReceived();
+    const totalEthReceived = await contract.totalEthReceived();
     expect(totalEthReceived === toWei("1"));
+  });
+
+  it("Correctly tracks contract token metrics", async function () {
+    const [addy1, addy2] = await ethers.getSigners();
+
+    await contract.transferFrom(addy1.address, addy2.address, 0);
+    await contract.connect(addy2).transferFrom(addy2.address, addy1.address, 0);
+    await contract.connect(addy1).setApprovalForAll(addy2.address, true);
+
+    const metrics = await contract.getContractMetrics();
+
+    expect(metrics[0].toNumber() === 1);
+    expect(metrics[1].toNumber() > 0);
+    expect(metrics[2].toNumber() === 2);
+    expect(metrics[3].toNumber() > 0);
+    expect(metrics[4].toString() === toWei("4").toString());
+    expect(metrics[5].toNumber() === 1);
   });
 });
