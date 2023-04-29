@@ -26,3 +26,7 @@ export function getMerkleRoot(addresses: string[]) {
 
   return { tree, root: tree.getHexRoot() };
 }
+
+export function getStringOfNKilobytes(n: number) {
+  return "0".repeat(n * 1024);
+}

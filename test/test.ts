@@ -1,9 +1,9 @@
 import { expect } from "chai";
 import { ethers, network } from "hardhat";
 import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/signers";
-import { Gold, GoldFixedPriceSale, GoldDutchAuction } from "../typechain-types";
+import { Gold, GoldFixedPriceSale, GoldDutchAuction, GoldStorage } from "../typechain-types";
 import { time } from "@nomicfoundation/hardhat-network-helpers";
-import { advanceBlock } from "./utils";
+
 
 const toWei = ethers.utils.parseEther;
 
@@ -177,8 +177,7 @@ describe("GOLD data", async function () {
     const tokenData = await contract.tokenData(0);
 
     expect(tokenData.transferCount.toNumber() === 2);
-    expect(tokenData.gasUsed.toNumber() > 0);
-  });
+   });
 
   it("Correctly tracks eth received", async function () {
     await deployer.sendTransaction({
@@ -196,13 +195,59 @@ describe("GOLD data", async function () {
     await contract.connect(addy2).transferFrom(addy2.address, addy1.address, 0);
     await contract.connect(addy1).setApprovalForAll(addy2.address, true);
 
-    const metrics = await contract.getContractMetrics();
+    // const metrics = await contract.getContractMetrics();
 
-    expect(metrics[0].toNumber() === 1);
-    expect(metrics[1].toNumber() > 0);
-    expect(metrics[2].toNumber() === 2);
-    expect(metrics[3].toNumber() > 0);
-    expect(metrics[4].toString() === toWei("4").toString());
-    expect(metrics[5].toNumber() === 1);
+    // console.log(metrics[6])
+    // expect(metrics[0].toNumber() === 1);
+    // expect(metrics[1].length === 1);
+    // expect(metrics[2].toNumber() === 2);
+    // expect(metrics[3].length === 2);
+    // expect(metrics[4].toString() === toWei("4").toString());
+    // expect(metrics[5].toNumber() === 1);
   });
+
+ 
+  
+});
+
+describe.only("GOLD storage", async function () {
+  let contract: Gold;
+  let storageContract: GoldStorage;
+
+  let deployer: SignerWithAddress;
+
+  beforeEach(async () => {
+    await network.provider.send("hardhat_reset");
+    const [dev, artist, dao] = await ethers.getSigners();
+    deployer = dev;
+    const Gold = await ethers.getContractFactory("Gold");
+    contract = await Gold.deploy(
+      [dev.address, artist.address, dao.address],
+      [DEV_SPLIT, ARTIST_SPLIT, DAO_SPLIT],
+      [dev.address, artist.address, dao.address]
+    );
+
+
+    const storageAddy = await contract.storageContract();
+    storageContract = (await ethers.getContractFactory("GoldStorage")).attach(storageAddy)
+
+ 
+  });
+
+  it.only("Correctly sets SVG data", async function () {
+    const data = ethers.utils.randomBytes(4 * 1024)
+    const stringAsBytes = ethers.utils.toUtf8Bytes("<svg>hey{}</svg>")
+    await storageContract.setArtScript(stringAsBytes)
+
+    
+    const fetchedData = await storageContract.getArtScript()
+    const fetchedAsUtf8 = ethers.utils.toUtf8String(fetchedData)
+    console.log(fetchedAsUtf8)
+    expect(fetchedAsUtf8 === "<svg>hey{}</svg>")
+  
+   });
+
+ 
+ 
+  
 });

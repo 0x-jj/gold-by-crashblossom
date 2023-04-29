@@ -19,6 +19,13 @@ interface IGold {
 contract GoldDutchAuction is LinearDutchAuction {
   IGold public gold;
 
+  struct Receipt {
+    // max uint232 allows for > 1e51 ETH (much more than max supply)
+    uint232 netPosted;
+    // max uint24 still allows for > max project supply of 1 million tokens
+    uint24 numPurchased;
+  }
+
   constructor(
     address[] memory payees,
     uint256[] memory shares,

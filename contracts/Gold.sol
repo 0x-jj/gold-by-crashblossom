@@ -9,6 +9,8 @@ import "@openzeppelin/contracts/access/Ownable.sol";
 import "./lib/LinearDutchAuction.sol";
 import "./lib/ERC721.sol";
 
+import "./Storage.sol";
+
 error NotAuthorized();
 error MaxSupplyReached();
 
@@ -22,10 +24,13 @@ contract Gold is ERC721, PaymentSplitter, AccessControl, Ownable {
 
   address public sale;
 
+  GoldStorage public storageContract;
+
   struct TokenData {
     uint256 transferCount;
-    uint256 lastTransferTimestamp;
-    uint256 gasUsed;
+    uint256[HISTORY_LENGTH] latestTransferTimestamps;
+    uint256 mintTimestamp;
+    bytes32 seed;
   }
 
   // Mapping from token ID to token data
@@ -34,14 +39,15 @@ contract Gold is ERC721, PaymentSplitter, AccessControl, Ownable {
   // Amount of ETH received by the contract ever
   uint256 public totalEthReceived;
 
+  // Amount of ETH received by the contract the last 2 occasions, to compare if it went up or down
+  uint256 public latestEthReceived;
+  uint256 public previousEthReceived;
+
   // Number of transfers that have happened on the contract
   uint256 public transferCount;
 
   // Timestamp of the last transfer that happened on the contract
-  uint256 public lastTransferTimestamp;
-
-  // SVG layers
-  string[22] public layers;
+  uint256[HISTORY_LENGTH] public latestTransferTimestamps;
 
   constructor(
     address[] memory payees,
@@ -52,17 +58,11 @@ contract Gold is ERC721, PaymentSplitter, AccessControl, Ownable {
     for (uint256 i = 0; i < admins_.length; i++) {
       _grantRole(DEFAULT_ADMIN_ROLE, admins_[i]);
     }
+    storageContract = new GoldStorage(admins_);
   }
 
   function setSaleAddress(address _sale) external onlyRole(DEFAULT_ADMIN_ROLE) {
     sale = _sale;
-  }
-
-  function setLayer(
-    uint8 index,
-    string memory data
-  ) external onlyRole(DEFAULT_ADMIN_ROLE) {
-    layers[index] = data;
   }
 
   function mint(address to) external {
@@ -71,6 +71,16 @@ contract Gold is ERC721, PaymentSplitter, AccessControl, Ownable {
 
     uint256 tokenId = totalSupply;
     totalSupply++;
+    tokenData[tokenId].mintTimestamp = block.timestamp;
+    tokenData[tokenId].seed = keccak256(
+      abi.encodePacked(
+        blockhash(block.number - 1),
+        block.number,
+        block.timestamp,
+        _msgSender(),
+        tokenId
+      )
+    );
     _safeMint(to, tokenId);
   }
 
@@ -78,30 +88,20 @@ contract Gold is ERC721, PaymentSplitter, AccessControl, Ownable {
     return baseURI_;
   }
 
-  function _beforeTokenTransfer(
-    address,
-    address,
-    uint256 tokenId,
-    uint256
-  ) internal override {
-    tokenData[tokenId].gasUsed += gasleft();
-  }
-
   function _afterTokenTransfer(
-    address from,
+    address,
     address,
     uint256 tokenId,
     uint256
   ) internal override {
-    if (from != address(0)) {
-      tokenData[tokenId].transferCount++;
-      transferCount++;
-    }
+    tokenData[tokenId].transferCount++;
+    transferCount++;
 
-    lastTransferTimestamp = block.timestamp;
+    latestTransferTimestamps[transferCount % HISTORY_LENGTH] = block.timestamp;
 
-    tokenData[tokenId].lastTransferTimestamp = block.timestamp;
-    tokenData[tokenId].gasUsed -= gasleft();
+    tokenData[tokenId].latestTransferTimestamps[
+      tokenData[tokenId].transferCount % HISTORY_LENGTH
+    ] = block.timestamp;
   }
 
   function supportsInterface(
@@ -113,6 +113,8 @@ contract Gold is ERC721, PaymentSplitter, AccessControl, Ownable {
   receive() external payable override {
     emit PaymentReceived(_msgSender(), msg.value);
     totalEthReceived += msg.value;
+    previousEthReceived = latestEthReceived;
+    latestEthReceived = msg.value;
   }
 
   function getHolderCount() internal view returns (uint256) {
@@ -145,25 +147,39 @@ contract Gold is ERC721, PaymentSplitter, AccessControl, Ownable {
   function getContractMetrics()
     external
     view
-    returns (uint256, uint256, uint256, uint256, uint256, uint256)
+    returns (
+      uint256,
+      uint256[HISTORY_LENGTH] memory,
+      uint256,
+      uint256[HISTORY_LENGTH] memory,
+      uint256,
+      uint256,
+      bool
+    )
   {
     return (
       approvalCount,
-      lastApprovalTimestamp,
+      latestApprovalTimestamps,
       transferCount,
-      lastTransferTimestamp,
+      latestTransferTimestamps,
       totalEthReceived,
-      getHolderCount()
+      getHolderCount(),
+      latestEthReceived > previousEthReceived
     );
   }
 
   function getTokenMetrics(
     uint256 tokenId
-  ) external view returns (uint256, uint256, uint256) {
+  )
+    external
+    view
+    returns (uint256, uint256[HISTORY_LENGTH] memory, uint256, bytes32)
+  {
     return (
       tokenData[tokenId].transferCount,
-      tokenData[tokenId].lastTransferTimestamp,
-      tokenData[tokenId].gasUsed
+      tokenData[tokenId].latestTransferTimestamps,
+      tokenData[tokenId].mintTimestamp,
+      tokenData[tokenId].seed
     );
   }
 }

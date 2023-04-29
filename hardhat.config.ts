@@ -58,6 +58,7 @@ module.exports = {
   },
   gasReporter: {
     enabled: true,
+    gasPrice: 30
   },
   etherscan: {
     apiKey: process.env.ETHERSCAN_API_KEY,
