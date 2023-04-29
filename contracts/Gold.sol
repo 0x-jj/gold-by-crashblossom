@@ -5,6 +5,7 @@ pragma solidity ^0.8.4;
 import "@openzeppelin/contracts/finance/PaymentSplitter.sol";
 import "@openzeppelin/contracts/access/AccessControl.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
+import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
 import "./lib/LinearDutchAuction.sol";
 import "./lib/ERC721.sol";
@@ -25,6 +26,7 @@ contract Gold is ERC721, PaymentSplitter, AccessControl, Ownable {
   address public sale;
 
   GoldStorage public storageContract;
+  IERC20 public wethContract;
 
   struct TokenData {
     uint256 transferCount;
@@ -36,12 +38,18 @@ contract Gold is ERC721, PaymentSplitter, AccessControl, Ownable {
   // Mapping from token ID to token data
   mapping(uint256 => TokenData) public tokenData;
 
-  // Amount of ETH received by the contract ever
-  uint256 public totalEthReceived;
+  // Track when we receive royalty payments
+  struct RoyaltyReceipt {
+    uint256 timestamp;
+    uint256 amount;
+  }
+  uint256 public ethReceivedCount;
+  RoyaltyReceipt[HISTORY_LENGTH] public ethReceipts;
 
-  // Amount of ETH received by the contract the last 2 occasions, to compare if it went up or down
-  uint256 public latestEthReceived;
-  uint256 public previousEthReceived;
+  // Track WETH roughly by checking balances between transfers
+  uint256[HISTORY_LENGTH] public wethBalanceHistory;
+  RoyaltyReceipt[HISTORY_LENGTH] public wethReceipts;
+  uint256 public wethReceivedCount;
 
   // Number of transfers that have happened on the contract
   uint256 public transferCount;
@@ -94,14 +102,28 @@ contract Gold is ERC721, PaymentSplitter, AccessControl, Ownable {
     uint256 tokenId,
     uint256
   ) internal override {
-    tokenData[tokenId].transferCount++;
-    transferCount++;
-
     latestTransferTimestamps[transferCount % HISTORY_LENGTH] = block.timestamp;
 
     tokenData[tokenId].latestTransferTimestamps[
       tokenData[tokenId].transferCount % HISTORY_LENGTH
     ] = block.timestamp;
+
+    tokenData[tokenId].transferCount++;
+    transferCount++;
+
+    uint256 prevIndex = (wethReceivedCount - 1) % HISTORY_LENGTH;
+    uint256 index = wethReceivedCount % HISTORY_LENGTH;
+    uint256 prevBalance = wethBalanceHistory[prevIndex];
+    uint256 currentBalance = wethContract.balanceOf(address(this)) +
+      totalReleased(wethContract);
+    if (currentBalance > prevBalance) {
+      wethBalanceHistory[index] = currentBalance;
+      wethReceipts[index] = RoyaltyReceipt(
+        block.timestamp,
+        currentBalance - prevBalance
+      );
+      wethReceivedCount++;
+    }
   }
 
   function supportsInterface(
@@ -112,9 +134,11 @@ contract Gold is ERC721, PaymentSplitter, AccessControl, Ownable {
 
   receive() external payable override {
     emit PaymentReceived(_msgSender(), msg.value);
-    totalEthReceived += msg.value;
-    previousEthReceived = latestEthReceived;
-    latestEthReceived = msg.value;
+    ethReceipts[ethReceivedCount % HISTORY_LENGTH] = RoyaltyReceipt(
+      block.timestamp,
+      msg.value
+    );
+    ethReceivedCount += 1;
   }
 
   function getHolderCount() internal view returns (uint256) {
@@ -153,8 +177,8 @@ contract Gold is ERC721, PaymentSplitter, AccessControl, Ownable {
       uint256,
       uint256[HISTORY_LENGTH] memory,
       uint256,
-      uint256,
-      bool
+      RoyaltyReceipt[HISTORY_LENGTH] memory,
+      RoyaltyReceipt[HISTORY_LENGTH] memory
     )
   {
     return (
@@ -162,9 +186,9 @@ contract Gold is ERC721, PaymentSplitter, AccessControl, Ownable {
       latestApprovalTimestamps,
       transferCount,
       latestTransferTimestamps,
-      totalEthReceived,
       getHolderCount(),
-      latestEthReceived > previousEthReceived
+      ethReceipts,
+      wethReceipts
     );
   }
 
