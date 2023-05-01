@@ -41,7 +41,8 @@ contract GoldDutchAuction is LinearDutchAuction {
         freeQuota: 0,
         reserveFreeQuota: true,
         lockTotalInventory: true,
-        lockFreeQuota: true
+        lockFreeQuota: true,
+        allowRebates: true
       }),
       payable(0)
     )

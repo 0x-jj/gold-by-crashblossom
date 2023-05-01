@@ -1,9 +1,14 @@
 import { expect } from "chai";
 import { ethers, network } from "hardhat";
 import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/signers";
-import { Gold, GoldFixedPriceSale, GoldDutchAuction } from "../typechain-types";
+import {
+  Gold,
+  GoldFixedPriceSale,
+  GoldDutchAuction,
+  GoldStorage,
+  WETH,
+} from "../typechain-types";
 import { time } from "@nomicfoundation/hardhat-network-helpers";
-import { advanceBlock } from "./utils";
 
 const toWei = ethers.utils.parseEther;
 
@@ -28,10 +33,17 @@ describe("GOLD sale", async function () {
     const [dev, artist, dao] = await ethers.getSigners();
     deployer = dev;
     const Gold = await ethers.getContractFactory("Gold");
+
+    const Weth = await ethers.getContractFactory("WETH");
+    const deployedWeth = await Weth.deploy();
+
+    await deployedWeth.mint(dev.address, toWei("1000"));
+
     contract = await Gold.deploy(
       [dev.address, artist.address, dao.address],
       [DEV_SPLIT, ARTIST_SPLIT, DAO_SPLIT],
-      [dev.address, artist.address, dao.address]
+      [dev.address, artist.address, dao.address],
+      deployedWeth.address
     );
 
     const fixedSale = await ethers.getContractFactory("GoldFixedPriceSale");
@@ -119,6 +131,25 @@ describe("GOLD sale", async function () {
     await expect(await contract.ownerOf(0)).to.equal(deployer.address);
   });
 
+  it.only("Auction::Can successfully purchase and rebate", async function () {
+    await contract.setSaleAddress(auctionContract.address);
+    await auctionContract.setAuctionStartPoint(START_TIMESTAMP);
+    await time.increaseTo(START_TIMESTAMP + 300);
+    await auctionContract.buy({ value: toWei("3.8") });
+
+    // Get down to base price
+    await time.increaseTo(START_TIMESTAMP + 300 * 1000);
+    await auctionContract.buy({ value: toWei("0.4") });
+
+    const refunded = await auctionContract.callStatic.processRebateTo(
+      deployer.address
+    );
+    await expect(refunded.toString()).to.equal(toWei("3.4"));
+
+    // This should currently fail because the contract isnt holding balance
+    await auctionContract.processRebateTo(deployer.address);
+  });
+
   it("Fixed Sale::Can mint free mint", async function () {
     await contract.setSaleAddress(fixedSaleContract.address);
     const [_, __, dao] = await ethers.getSigners();
@@ -143,16 +174,24 @@ describe("GOLD data", async function () {
   let contract: Gold;
   let auctionContract: GoldDutchAuction;
   let deployer: SignerWithAddress;
+  let wethContract: WETH;
 
   beforeEach(async () => {
     await network.provider.send("hardhat_reset");
     const [dev, artist, dao] = await ethers.getSigners();
     deployer = dev;
+
+    const Weth = await ethers.getContractFactory("WETH");
+    const deployedWeth = await Weth.deploy();
+    wethContract = deployedWeth;
+    await deployedWeth.mint(dev.address, toWei("1000"));
+
     const Gold = await ethers.getContractFactory("Gold");
     contract = await Gold.deploy(
       [dev.address, artist.address, dao.address],
       [DEV_SPLIT, ARTIST_SPLIT, DAO_SPLIT],
-      [dev.address, artist.address, dao.address]
+      [dev.address, artist.address, dao.address],
+      deployedWeth.address
     );
 
     const auctionSale = await ethers.getContractFactory("GoldDutchAuction");
@@ -177,7 +216,6 @@ describe("GOLD data", async function () {
     const tokenData = await contract.tokenData(0);
 
     expect(tokenData.transferCount.toNumber() === 2);
-    expect(tokenData.gasUsed.toNumber() > 0);
   });
 
   it("Correctly tracks eth received", async function () {
@@ -185,11 +223,51 @@ describe("GOLD data", async function () {
       to: contract.address,
       value: toWei("1"),
     });
-    const totalEthReceived = await contract.totalEthReceived();
-    expect(totalEthReceived === toWei("1"));
+    const ethReceipts = (await contract.getContractMetrics())[5];
+    expect(ethReceipts[0].amount.toString()).to.equal(toWei("1").toString());
   });
 
-  it("Correctly tracks contract token metrics", async function () {
+  it("Correctly tracks wrapped eth received", async function () {
+    const [addy1, addy2] = await ethers.getSigners();
+
+    // Send in 1 WETH, then make an NFT transfer so we can record the WETH
+    await wethContract.transfer(contract.address, toWei("1"));
+    await contract.transferFrom(addy1.address, addy2.address, 0);
+    await contract.connect(addy2).transferFrom(addy2.address, addy1.address, 0);
+
+    // Check we received it and marked it correctly
+    const wethReceipts = (await contract.getContractMetrics())[6];
+    expect(wethReceipts[0].amount.toString()).to.equal(toWei("1").toString());
+
+    // Send in 2 WETH, then make an NFT transfer so we can record the WETH
+    await wethContract.transfer(contract.address, toWei("2"));
+    await contract.transferFrom(addy1.address, addy2.address, 0);
+    const wethReceipts2 = (await contract.getContractMetrics())[6];
+
+    // Check we received it and marked it correctly, and the original receipt is still there
+    expect(wethReceipts2[0].amount.toString()).to.equal(toWei("1").toString());
+    expect(wethReceipts2[1].amount.toString()).to.equal(toWei("2").toString());
+
+    // Withdraw some WETH so the balance is lowered
+    await contract["release(address,address)"](
+      wethContract.address,
+      deployer.address
+    );
+
+    // Ensure the weth balance is actually lowered. We sent in 3, balance should be lower than 3
+    const wethBal = await wethContract.balanceOf(contract.address);
+    expect(wethBal.toString()).to.not.equal(toWei("3").toString());
+
+    // Send in more WETH check that the receipt value is still correct despite having withdrawn
+    await wethContract.transfer(contract.address, toWei("5"));
+    await contract.connect(addy2).transferFrom(addy2.address, addy1.address, 0);
+    const wethReceipts3 = (await contract.getContractMetrics())[6];
+    expect(wethReceipts3[0].amount.toString()).to.equal(toWei("1").toString());
+    expect(wethReceipts3[1].amount.toString()).to.equal(toWei("2").toString());
+    expect(wethReceipts3[2].amount.toString()).to.equal(toWei("5").toString());
+  });
+
+  it("Correctly tracks transfers, approvals and holder count", async function () {
     const [addy1, addy2] = await ethers.getSigners();
 
     await contract.transferFrom(addy1.address, addy2.address, 0);
@@ -198,11 +276,56 @@ describe("GOLD data", async function () {
 
     const metrics = await contract.getContractMetrics();
 
-    expect(metrics[0].toNumber() === 1);
-    expect(metrics[1].toNumber() > 0);
-    expect(metrics[2].toNumber() === 2);
-    expect(metrics[3].toNumber() > 0);
-    expect(metrics[4].toString() === toWei("4").toString());
-    expect(metrics[5].toNumber() === 1);
+    // Approval info - single approval
+    expect(metrics[0].toNumber()).to.equal(1);
+    expect(metrics[1][0]).to.not.equal(0);
+
+    // Transfer info - 2 transfers plus 1 mint
+    expect(metrics[2].toNumber()).to.equal(3);
+    expect(metrics[3][0]).to.not.equal(0);
+
+    // Holder count - 1 holder
+    expect(metrics[4].toString()).to.equal("1");
+  });
+});
+
+describe("GOLD storage", async function () {
+  let contract: Gold;
+  let storageContract: GoldStorage;
+
+  let deployer: SignerWithAddress;
+
+  beforeEach(async () => {
+    await network.provider.send("hardhat_reset");
+    const [dev, artist, dao] = await ethers.getSigners();
+    deployer = dev;
+    const Gold = await ethers.getContractFactory("Gold");
+    const Weth = await ethers.getContractFactory("WETH");
+    const deployedWeth = await Weth.deploy();
+
+    await deployedWeth.mint(dev.address, toWei("1000"));
+
+    contract = await Gold.deploy(
+      [dev.address, artist.address, dao.address],
+      [DEV_SPLIT, ARTIST_SPLIT, DAO_SPLIT],
+      [dev.address, artist.address, dao.address],
+      deployedWeth.address
+    );
+
+    const storageAddy = await contract.storageContract();
+    storageContract = (await ethers.getContractFactory("GoldStorage")).attach(
+      storageAddy
+    );
+  });
+
+  it("Correctly sets SVG data", async function () {
+    const data = ethers.utils.randomBytes(4 * 1024);
+    const stringAsBytes = ethers.utils.toUtf8Bytes("<svg>hey{}</svg>");
+    await storageContract.setArtScript(stringAsBytes);
+
+    const fetchedData = await storageContract.getArtScript();
+    const fetchedAsUtf8 = ethers.utils.toUtf8String(fetchedData);
+    console.log(fetchedAsUtf8);
+    expect(fetchedAsUtf8 === "<svg>hey{}</svg>");
   });
 });

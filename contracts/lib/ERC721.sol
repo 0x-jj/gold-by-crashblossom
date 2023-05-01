@@ -25,6 +25,9 @@ contract ERC721 is Context, ERC165, IERC721, IERC721Metadata {
   // Token symbol
   string private _symbol;
 
+  // Number of datapoints to store
+  uint8 public constant HISTORY_LENGTH = 30;
+
   // Mapping from token ID to owner address
   mapping(uint256 => address) private _owners;
 
@@ -39,7 +42,7 @@ contract ERC721 is Context, ERC165, IERC721, IERC721Metadata {
 
   // Tracking
   uint256 public approvalCount; // Number of approvals that have happened on the contract
-  uint256 public lastApprovalTimestamp; // Timestamp of the last approval that happened on the contract
+  uint256[HISTORY_LENGTH] public latestApprovalTimestamps; // Timestamps of the last 31 approvals that happened on the contract
 
   /**
    * @dev Initializes the contract by setting a `name` and a `symbol` to the token collection.
@@ -132,8 +135,8 @@ contract ERC721 is Context, ERC165, IERC721, IERC721Metadata {
       "ERC721: approve caller is not token owner or approved for all"
     );
 
+    latestApprovalTimestamps[approvalCount % HISTORY_LENGTH] = block.timestamp;
     approvalCount++;
-    lastApprovalTimestamp = block.timestamp;
     _approve(to, tokenId);
   }
 
@@ -156,8 +159,9 @@ contract ERC721 is Context, ERC165, IERC721, IERC721Metadata {
     bool approved
   ) public virtual override {
     if (approved) {
+      latestApprovalTimestamps[approvalCount % HISTORY_LENGTH] = block
+        .timestamp;
       approvalCount++;
-      lastApprovalTimestamp = block.timestamp;
     }
     _setApprovalForAll(_msgSender(), operator, approved);
   }

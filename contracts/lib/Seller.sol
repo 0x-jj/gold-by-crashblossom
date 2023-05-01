@@ -9,6 +9,7 @@ import "@openzeppelin/contracts/utils/Address.sol";
 import "@openzeppelin/contracts/utils/Context.sol";
 import "@openzeppelin/contracts/utils/math/Math.sol";
 import "@openzeppelin/contracts/utils/Strings.sol";
+import "@openzeppelin/contracts/utils/math/SafeCast.sol";
 
 /**
 @notice An abstract contract providing the _purchase() function to:
@@ -19,6 +20,7 @@ abstract contract Seller is OwnerPausable, ReentrancyGuard {
   using Address for address payable;
   using Monotonic for Monotonic.Increaser;
   using Strings for uint256;
+  using SafeCast for uint256;
 
   /**
     @dev Note that the address limits are vulnerable to wallet farming.
@@ -42,7 +44,21 @@ abstract contract Seller is OwnerPausable, ReentrancyGuard {
     bool reserveFreeQuota;
     bool lockFreeQuota;
     bool lockTotalInventory;
+    bool allowRebates;
   }
+
+  struct Receipt {
+    uint232 netPosted;
+    uint24 numPurchased;
+  }
+  mapping(address => Receipt) public receipts;
+  uint256 public latestPurchasePrice;
+  event ReceiptUpdated(
+    address indexed recipient,
+    uint256 numPurchased,
+    uint256 netPosted
+  );
+  event RebateProcessed(address indexed recipient, uint256 amount);
 
   constructor(SellerConfig memory config, address payable _beneficiary) {
     setSellerConfig(config);
@@ -291,6 +307,18 @@ abstract contract Seller is OwnerPausable, ReentrancyGuard {
     _totalSold.add(n);
     assert(_totalSold.current() <= config.totalInventory);
 
+    Receipt storage receipt = receipts[_msgSender()];
+    uint256 netPosted = receipt.netPosted + _cost;
+    uint256 numPurchased = receipt.numPurchased + 1;
+
+    receipt.netPosted = uint232(netPosted);
+    receipt.numPurchased = uint24(numPurchased);
+
+    // emit event indicating new receipt state
+    emit ReceiptUpdated(_msgSender(), numPurchased, netPosted);
+
+    latestPurchasePrice = _cost;
+
     /**
      * ##### INTERACTIONS
      */
@@ -305,7 +333,6 @@ abstract contract Seller is OwnerPausable, ReentrancyGuard {
     // modifier and the checks, effects, interactions pattern.
 
     if (_cost > 0) {
-      beneficiary.sendValue(_cost);
       emit Revenue(beneficiary, n, _cost);
     }
 
@@ -328,5 +355,57 @@ abstract contract Seller is OwnerPausable, ReentrancyGuard {
 
       emit Refund(reimburse, refund);
     }
+  }
+
+  /**
+   * @notice Refunds the sender's payment above current settled price.
+   * The current settled price is the the price paid
+   * for the most recently purchased token.
+   * This function is callable at any point, but is expected to typically be
+   * called after auction has sold out above base price or after the auction
+   * has been purchased at base price. This minimizes the amount of gas
+   * required to send all funds.
+   * @param _to Address to send funds to.
+   */
+  function processRebateTo(
+    address payable _to
+  ) public nonReentrant returns (uint256) {
+    require(sellerConfig.allowRebates, "Rebates not allowed");
+
+    Receipt storage receipt = receipts[_msgSender()];
+    uint256 numPurchased = receipt.numPurchased;
+    // CHECKS
+    // input validation
+    require(_to != address(0), "No claiming to the zero address");
+    // require that a user has purchased at least one token on this project
+    require(numPurchased > 0, "No purchases made by this address");
+    // get the latestPurchasePrice, which returns the sellout price if the
+    // auction sold out before reaching base price, or returns the base
+    // price if auction has reached base price and artist has withdrawn
+    // revenues.
+    // @dev if user is eligible for a reclaiming, they have purchased a
+    // token, therefore we are guaranteed to have a populated
+    // latestPurchasePrice
+
+    // EFFECTS
+    // calculate the excess funds amount
+    uint256 requiredAmountPosted = numPurchased * latestPurchasePrice;
+    uint256 excessPosted = receipt.netPosted - requiredAmountPosted;
+    // update Receipt in storage
+    receipt.netPosted = requiredAmountPosted.toUint232();
+    // emit event indicating new receipt state and the rebate amount
+    emit ReceiptUpdated(_msgSender(), numPurchased, requiredAmountPosted);
+    emit RebateProcessed(_msgSender(), excessPosted);
+
+    // INTERACTIONS
+    bool success_;
+    (success_, ) = _to.call{value: excessPosted}("");
+    require(success_, "Rebate failed");
+
+    return excessPosted;
+  }
+
+  function withdraw() public onlyOwner {
+    beneficiary.sendValue(address(this).balance);
   }
 }
