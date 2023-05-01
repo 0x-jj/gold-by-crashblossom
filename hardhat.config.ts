@@ -29,13 +29,23 @@ task("accounts", "Prints the list of accounts", async (taskArgs, hre) => {
  * @type import('hardhat/config').HardhatUserConfig
  */
 module.exports = {
-  solidity: "0.8.4",
+  solidity: {
+    version: "0.8.17",
+    settings: {
+      optimizer: {
+        enabled: true,
+        runs: 500,
+      },
+    },
+  },
   networks: {
     hardhat: {
       // Uncomment when you want the hardhat network to fork mainnet
       // forking: {
       //   url: `https://eth-mainnet.alchemyapi.io/v2/${ALCHEMY_KEY}`,
       // },
+      blockGasLimit: 500000000,
+      timeout: 100000000,
       accounts: {
         count: 1500,
         mnemonic: SEED_PHRASE,

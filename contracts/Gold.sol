@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: MIT
 
-pragma solidity ^0.8.4;
+pragma solidity ^0.8.17;
 
 import "@openzeppelin/contracts/finance/PaymentSplitter.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
@@ -9,7 +9,7 @@ import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "./lib/LinearDutchAuction.sol";
 import "./lib/ERC721.sol";
 
-import "./Storage.sol";
+import {IScriptyBuilder, WrappedScriptRequest} from "./lib/scripty/IScriptyBuilder.sol";
 
 error NotAuthorized();
 error MaxSupplyReached();
@@ -17,14 +17,14 @@ error MaxSupplyReached();
 /// @title Gold
 /// @author @0x_jj
 contract Gold is ERC721, PaymentSplitter, Ownable {
-  string private baseURI_ = "https://www.gold.xyz/api/token/metadata/";
-
   uint256 public totalSupply = 0;
   uint256 public constant MAX_SUPPLY = 700;
 
   address public sale;
 
-  GoldStorage public storageContract;
+  address public immutable scriptyStorageAddress;
+  address public immutable scriptyBuilderAddress;
+  uint256 bufferSize;
   IERC20 public wethContract;
 
   struct TokenData {
@@ -60,10 +60,15 @@ contract Gold is ERC721, PaymentSplitter, Ownable {
     address[] memory payees,
     uint256[] memory shares,
     address[] memory admins_,
-    address wethContract_
+    address wethContract_,
+    address _scriptyBuilderAddress,
+    address _scriptyStorageAddress,
+    uint256 bufferSize_
   ) PaymentSplitter(payees, shares) ERC721("GOLD", "GOLD") {
-    storageContract = new GoldStorage(admins_);
+    scriptyStorageAddress = _scriptyStorageAddress;
+    scriptyBuilderAddress = _scriptyBuilderAddress;
     wethContract = IERC20(wethContract_);
+    bufferSize = bufferSize_;
   }
 
   function setSaleAddress(address _sale) external onlyOwner {
@@ -89,8 +94,40 @@ contract Gold is ERC721, PaymentSplitter, Ownable {
     _safeMint(to, tokenId);
   }
 
-  function _baseURI() internal view override returns (string memory) {
-    return baseURI_;
+  function tokenURI(
+    uint256 tokenId
+  ) public view override returns (string memory) {
+    WrappedScriptRequest[] memory requests = new WrappedScriptRequest[](3);
+
+    requests[0].name = "gold_crashblossom_base";
+    requests[0].wrapType = 0; // <script>[script]</script>
+    requests[0].contractAddress = scriptyStorageAddress;
+
+    requests[1].name = "gold_crashblossom_paths";
+    requests[1].wrapType = 0; // <script>[script]</script>
+    requests[1].contractAddress = scriptyStorageAddress;
+
+    requests[2].name = "gold_crashblossom_main";
+    requests[2].wrapType = 0; // <script>[script]</script>
+    requests[2].contractAddress = scriptyStorageAddress;
+    
+    bytes memory doubleURLEncodedHTMLDataURI = IScriptyBuilder(
+      scriptyBuilderAddress
+    ).getHTMLWrappedURLSafe(requests, bufferSize);
+
+    return
+      string(
+        abi.encodePacked(
+          "data:application/json,",
+          // url encoded once
+          // {"name":"GOLD #<tokenId>", "description":"GOLD is an on-chain generative artwork that changes with the market.","animation_url":"
+          "%7B%22name%22%3A%22GOLD%20%23", toString(tokenId), "%22%2C%20%22description%22%3A%22GOLD%20is%20an%20on-chain%20generative%20artwork%20that%20changes%20with%20the%20market.%22%2C%22animation_url%22%3A%22",
+          doubleURLEncodedHTMLDataURI,
+          // url encoded once
+          // "}
+          "%22%7D"
+        )
+      );
   }
 
   function _afterTokenTransfer(
@@ -211,4 +248,26 @@ contract Gold is ERC721, PaymentSplitter, Ownable {
       tokenData[tokenId].seed
     );
   }
+
+  function toString(uint256 value) internal pure returns (string memory) {
+        // Inspired by OraclizeAPI's implementation - MIT licence
+        // https://github.com/oraclize/ethereum-api/blob/b42146b063c7d6ee1358846c198246239e9360e8/oraclizeAPI_0.4.25.sol
+
+        if (value == 0) {
+            return "0";
+        }
+        uint256 temp = value;
+        uint256 digits;
+        while (temp != 0) {
+            digits++;
+            temp /= 10;
+        }
+        bytes memory buffer = new bytes(digits);
+        while (value != 0) {
+            digits -= 1;
+            buffer[digits] = bytes1(uint8(48 + uint256(value % 10)));
+            value /= 10;
+        }
+        return string(buffer);
+    }
 }
