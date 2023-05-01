@@ -38,7 +38,8 @@ contract GoldFixedPriceSale is FixedPriceSeller {
         freeQuota: 30,
         reserveFreeQuota: true,
         lockTotalInventory: true,
-        lockFreeQuota: true
+        lockFreeQuota: true,
+        allowRebates: false
       }),
       payable(0)
     )
