@@ -3,7 +3,6 @@
 pragma solidity ^0.8.4;
 
 import "@openzeppelin/contracts/finance/PaymentSplitter.sol";
-import "@openzeppelin/contracts/access/AccessControl.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
@@ -17,7 +16,7 @@ error MaxSupplyReached();
 
 /// @title Gold
 /// @author @0x_jj
-contract Gold is ERC721, PaymentSplitter, AccessControl, Ownable {
+contract Gold is ERC721, PaymentSplitter, Ownable {
   string private baseURI_ = "https://www.gold.xyz/api/token/metadata/";
 
   uint256 public totalSupply = 0;
@@ -60,16 +59,14 @@ contract Gold is ERC721, PaymentSplitter, AccessControl, Ownable {
   constructor(
     address[] memory payees,
     uint256[] memory shares,
-    address[] memory admins_
+    address[] memory admins_,
+    address wethContract_
   ) PaymentSplitter(payees, shares) ERC721("GOLD", "GOLD") {
-    _grantRole(DEFAULT_ADMIN_ROLE, _msgSender());
-    for (uint256 i = 0; i < admins_.length; i++) {
-      _grantRole(DEFAULT_ADMIN_ROLE, admins_[i]);
-    }
     storageContract = new GoldStorage(admins_);
+    wethContract = IERC20(wethContract_);
   }
 
-  function setSaleAddress(address _sale) external onlyRole(DEFAULT_ADMIN_ROLE) {
+  function setSaleAddress(address _sale) external onlyOwner {
     sale = _sale;
   }
 
@@ -102,16 +99,24 @@ contract Gold is ERC721, PaymentSplitter, AccessControl, Ownable {
     uint256 tokenId,
     uint256
   ) internal override {
+    // Record latest transfer on contract
     latestTransferTimestamps[transferCount % HISTORY_LENGTH] = block.timestamp;
 
+    // Record latest transfer on token. Unordered, to be sorted by timestamp off chain
     tokenData[tokenId].latestTransferTimestamps[
       tokenData[tokenId].transferCount % HISTORY_LENGTH
     ] = block.timestamp;
 
+    // Increase transfer counts on token and contract. Important so that we can correctly write to history arrays in a loop
     tokenData[tokenId].transferCount++;
     transferCount++;
 
-    uint256 prevIndex = (wethReceivedCount - 1) % HISTORY_LENGTH;
+    // Record WETH receipts, if any, attempting to match how we record native ETH receipts
+    // We do this by checking the balance of the contract before and after the transfer, taking into account any WETH that has been released to payees
+    // Of course this means we don't know when WETH was received multiple times between two transfers occurring, but that's fine, it's just a rough estimate
+    uint256 prevIndex = wethReceivedCount == 0
+      ? 0
+      : (wethReceivedCount - 1) % HISTORY_LENGTH;
     uint256 index = wethReceivedCount % HISTORY_LENGTH;
     uint256 prevBalance = wethBalanceHistory[prevIndex];
     uint256 currentBalance = wethContract.balanceOf(address(this)) +
@@ -128,7 +133,7 @@ contract Gold is ERC721, PaymentSplitter, AccessControl, Ownable {
 
   function supportsInterface(
     bytes4 interfaceId
-  ) public view override(ERC721, AccessControl) returns (bool) {
+  ) public view override(ERC721) returns (bool) {
     return super.supportsInterface(interfaceId);
   }
 

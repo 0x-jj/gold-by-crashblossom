@@ -135,8 +135,8 @@ contract ERC721 is Context, ERC165, IERC721, IERC721Metadata {
       "ERC721: approve caller is not token owner or approved for all"
     );
 
-    approvalCount++;
     latestApprovalTimestamps[approvalCount % HISTORY_LENGTH] = block.timestamp;
+    approvalCount++;
     _approve(to, tokenId);
   }
 
@@ -159,9 +159,9 @@ contract ERC721 is Context, ERC165, IERC721, IERC721Metadata {
     bool approved
   ) public virtual override {
     if (approved) {
-      approvalCount++;
       latestApprovalTimestamps[approvalCount % HISTORY_LENGTH] = block
         .timestamp;
+      approvalCount++;
     }
     _setApprovalForAll(_msgSender(), operator, approved);
   }
