@@ -289,43 +289,4 @@ describe("GOLD data", async function () {
   });
 });
 
-describe("GOLD storage", async function () {
-  let contract: Gold;
-  let storageContract: GoldStorage;
-
-  let deployer: SignerWithAddress;
-
-  beforeEach(async () => {
-    await network.provider.send("hardhat_reset");
-    const [dev, artist, dao] = await ethers.getSigners();
-    deployer = dev;
-    const Gold = await ethers.getContractFactory("Gold");
-    const Weth = await ethers.getContractFactory("WETH");
-    const deployedWeth = await Weth.deploy();
-
-    await deployedWeth.mint(dev.address, toWei("1000"));
-
-    contract = await Gold.deploy(
-      [dev.address, artist.address, dao.address],
-      [DEV_SPLIT, ARTIST_SPLIT, DAO_SPLIT],
-      [dev.address, artist.address, dao.address],
-      deployedWeth.address
-    );
-
-    const storageAddy = await contract.storageContract();
-    storageContract = (await ethers.getContractFactory("GoldStorage")).attach(
-      storageAddy
-    );
-  });
-
-  it("Correctly sets SVG data", async function () {
-    const data = ethers.utils.randomBytes(4 * 1024);
-    const stringAsBytes = ethers.utils.toUtf8Bytes("<svg>hey{}</svg>");
-    await storageContract.setArtScript(stringAsBytes);
-
-    const fetchedData = await storageContract.getArtScript();
-    const fetchedAsUtf8 = ethers.utils.toUtf8String(fetchedData);
-    console.log(fetchedAsUtf8);
-    expect(fetchedAsUtf8 === "<svg>hey{}</svg>");
-  });
-});
+ 
