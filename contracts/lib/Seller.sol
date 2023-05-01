@@ -58,6 +58,7 @@ abstract contract Seller is OwnerPausable, ReentrancyGuard {
     uint256 numPurchased,
     uint256 netPosted
   );
+  event RebateProcessed(address indexed recipient, uint256 amount);
 
   constructor(SellerConfig memory config, address payable _beneficiary) {
     setSellerConfig(config);
@@ -332,7 +333,6 @@ abstract contract Seller is OwnerPausable, ReentrancyGuard {
     // modifier and the checks, effects, interactions pattern.
 
     if (_cost > 0) {
-      beneficiary.sendValue(_cost);
       emit Revenue(beneficiary, n, _cost);
     }
 
@@ -367,7 +367,9 @@ abstract contract Seller is OwnerPausable, ReentrancyGuard {
    * required to send all funds.
    * @param _to Address to send funds to.
    */
-  function processRebateTo(address payable _to) public nonReentrant {
+  function processRebateTo(
+    address payable _to
+  ) public nonReentrant returns (uint256) {
     require(sellerConfig.allowRebates, "Rebates not allowed");
 
     Receipt storage receipt = receipts[_msgSender()];
@@ -391,12 +393,19 @@ abstract contract Seller is OwnerPausable, ReentrancyGuard {
     uint256 excessPosted = receipt.netPosted - requiredAmountPosted;
     // update Receipt in storage
     receipt.netPosted = requiredAmountPosted.toUint232();
-    // emit event indicating new receipt state
-    emit ReceiptUpdated(msg.sender, numPurchased, requiredAmountPosted);
+    // emit event indicating new receipt state and the rebate amount
+    emit ReceiptUpdated(_msgSender(), numPurchased, requiredAmountPosted);
+    emit RebateProcessed(_msgSender(), excessPosted);
 
     // INTERACTIONS
     bool success_;
     (success_, ) = _to.call{value: excessPosted}("");
     require(success_, "Rebate failed");
+
+    return excessPosted;
+  }
+
+  function withdraw() public onlyOwner {
+    beneficiary.sendValue(address(this).balance);
   }
 }

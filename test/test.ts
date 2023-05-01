@@ -131,6 +131,25 @@ describe("GOLD sale", async function () {
     await expect(await contract.ownerOf(0)).to.equal(deployer.address);
   });
 
+  it.only("Auction::Can successfully purchase and rebate", async function () {
+    await contract.setSaleAddress(auctionContract.address);
+    await auctionContract.setAuctionStartPoint(START_TIMESTAMP);
+    await time.increaseTo(START_TIMESTAMP + 300);
+    await auctionContract.buy({ value: toWei("3.8") });
+
+    // Get down to base price
+    await time.increaseTo(START_TIMESTAMP + 300 * 1000);
+    await auctionContract.buy({ value: toWei("0.4") });
+
+    const refunded = await auctionContract.callStatic.processRebateTo(
+      deployer.address
+    );
+    await expect(refunded.toString()).to.equal(toWei("3.4"));
+
+    // This should currently fail because the contract isnt holding balance
+    await auctionContract.processRebateTo(deployer.address);
+  });
+
   it("Fixed Sale::Can mint free mint", async function () {
     await contract.setSaleAddress(fixedSaleContract.address);
     const [_, __, dao] = await ethers.getSigners();
@@ -151,7 +170,7 @@ describe("GOLD sale", async function () {
   // });
 });
 
-describe.only("GOLD data", async function () {
+describe("GOLD data", async function () {
   let contract: Gold;
   let auctionContract: GoldDutchAuction;
   let deployer: SignerWithAddress;
@@ -248,7 +267,7 @@ describe.only("GOLD data", async function () {
     expect(wethReceipts3[2].amount.toString()).to.equal(toWei("5").toString());
   });
 
-  it.only("Correctly tracks transfers, approvals and holder count", async function () {
+  it("Correctly tracks transfers, approvals and holder count", async function () {
     const [addy1, addy2] = await ethers.getSigners();
 
     await contract.transferFrom(addy1.address, addy2.address, 0);
