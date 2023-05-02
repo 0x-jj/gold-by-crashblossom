@@ -58,7 +58,7 @@ async function storeScript(
   let script = utilities.readFile(path.join(__dirname, filePath));
 
   if (compress) {
-    script = (await gzip(script)).toString("utf8");
+    script = utilities.toGZIPBase64String(script);
   }
 
   const scriptChunks = utilities.chunkSubstr(script, 24575);
@@ -117,7 +117,14 @@ async function main() {
   await storeScript(
     scriptyStorageContract,
     "gold_crashblossom_paths",
-    "scripts/paths.js"
+    "scripts/paths.js",
+    true
+  );
+
+  await storeScript(
+    scriptyStorageContract,
+    "gunzipScripts-0.0.1",
+    "scripts/gunzipScripts-0.0.1.js"
   );
 
   await storeScript(
@@ -138,6 +145,15 @@ async function main() {
     },
     {
       name: "gold_crashblossom_paths",
+      contractAddress: scriptyStorageContract.address,
+      contractData: 0,
+      wrapType: 2,
+      wrapPrefix: utilities.emptyBytes(),
+      wrapSuffix: utilities.emptyBytes(),
+      scriptContent: utilities.emptyBytes(),
+    },
+    {
+      name: "gunzipScripts-0.0.1",
       contractAddress: scriptyStorageContract.address,
       contractData: 0,
       wrapType: 0,
