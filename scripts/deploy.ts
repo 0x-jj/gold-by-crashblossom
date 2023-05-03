@@ -81,9 +81,9 @@ async function storeScript(
     );
     console.log(
       `${name} chunk #`,
-      i,
+      i + 1,
       "/",
-      scriptChunks.length - 1,
+      scriptChunks.length,
       "chunk length: ",
       scriptChunks[i].length
     );
