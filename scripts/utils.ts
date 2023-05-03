@@ -44,5 +44,5 @@ export const toBase64String = (data: any) => {
 };
 
 export const toGZIPBase64String = (data: any) => {
-  return zlib.deflateSync(data).toString("base64");
+  return zlib.gzipSync(data).toString("base64");
 };

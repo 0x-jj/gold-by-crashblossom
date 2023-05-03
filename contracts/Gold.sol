@@ -97,20 +97,24 @@ contract Gold is ERC721, PaymentSplitter, Ownable {
   function tokenURI(
     uint256 tokenId
   ) public view override returns (string memory) {
-    WrappedScriptRequest[] memory requests = new WrappedScriptRequest[](3);
+    WrappedScriptRequest[] memory requests = new WrappedScriptRequest[](4);
 
     requests[0].name = "gold_crashblossom_base";
     requests[0].wrapType = 0; // <script>[script]</script>
     requests[0].contractAddress = scriptyStorageAddress;
 
     requests[1].name = "gold_crashblossom_paths";
-    requests[1].wrapType = 0; // <script>[script]</script>
+    requests[1].wrapType = 2;
     requests[1].contractAddress = scriptyStorageAddress;
 
-    requests[2].name = "gold_crashblossom_main";
+    requests[2].name = "gunzipScripts-0.0.1";
     requests[2].wrapType = 0; // <script>[script]</script>
     requests[2].contractAddress = scriptyStorageAddress;
-    
+
+    requests[3].name = "gold_crashblossom_main";
+    requests[3].wrapType = 0; // <script>[script]</script>
+    requests[3].contractAddress = scriptyStorageAddress;
+
     bytes memory doubleURLEncodedHTMLDataURI = IScriptyBuilder(
       scriptyBuilderAddress
     ).getHTMLWrappedURLSafe(requests, bufferSize);
@@ -121,7 +125,9 @@ contract Gold is ERC721, PaymentSplitter, Ownable {
           "data:application/json,",
           // url encoded once
           // {"name":"GOLD #<tokenId>", "description":"GOLD is an on-chain generative artwork that changes with the market.","animation_url":"
-          "%7B%22name%22%3A%22GOLD%20%23", toString(tokenId), "%22%2C%20%22description%22%3A%22GOLD%20is%20an%20on-chain%20generative%20artwork%20that%20changes%20with%20the%20market.%22%2C%22animation_url%22%3A%22",
+          "%7B%22name%22%3A%22GOLD%20%23",
+          toString(tokenId),
+          "%22%2C%20%22description%22%3A%22GOLD%20is%20an%20on-chain%20generative%20artwork%20that%20changes%20with%20the%20market.%22%2C%22animation_url%22%3A%22",
           doubleURLEncodedHTMLDataURI,
           // url encoded once
           // "}
@@ -250,24 +256,24 @@ contract Gold is ERC721, PaymentSplitter, Ownable {
   }
 
   function toString(uint256 value) internal pure returns (string memory) {
-        // Inspired by OraclizeAPI's implementation - MIT licence
-        // https://github.com/oraclize/ethereum-api/blob/b42146b063c7d6ee1358846c198246239e9360e8/oraclizeAPI_0.4.25.sol
+    // Inspired by OraclizeAPI's implementation - MIT licence
+    // https://github.com/oraclize/ethereum-api/blob/b42146b063c7d6ee1358846c198246239e9360e8/oraclizeAPI_0.4.25.sol
 
-        if (value == 0) {
-            return "0";
-        }
-        uint256 temp = value;
-        uint256 digits;
-        while (temp != 0) {
-            digits++;
-            temp /= 10;
-        }
-        bytes memory buffer = new bytes(digits);
-        while (value != 0) {
-            digits -= 1;
-            buffer[digits] = bytes1(uint8(48 + uint256(value % 10)));
-            value /= 10;
-        }
-        return string(buffer);
+    if (value == 0) {
+      return "0";
     }
+    uint256 temp = value;
+    uint256 digits;
+    while (temp != 0) {
+      digits++;
+      temp /= 10;
+    }
+    bytes memory buffer = new bytes(digits);
+    while (value != 0) {
+      digits -= 1;
+      buffer[digits] = bytes1(uint8(48 + uint256(value % 10)));
+      value /= 10;
+    }
+    return string(buffer);
+  }
 }
