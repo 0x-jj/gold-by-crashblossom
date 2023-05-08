@@ -11,6 +11,8 @@ import "./lib/ERC721.sol";
 import "hardhat/console.sol";
 import {IScriptyBuilder, WrappedScriptRequest} from "./lib/scripty/IScriptyBuilder.sol";
 
+import "hardhat/console.sol";
+
 error NotAuthorized();
 error MaxSupplyReached();
 
@@ -172,7 +174,7 @@ contract Gold is ERC721, PaymentSplitter, Ownable {
     }
 
     uint256 endGas = gasleft();
-    console.log(endGas - startGas);
+    console.log("gas left", endGas - startGas);
   }
 
   function supportsInterface(
