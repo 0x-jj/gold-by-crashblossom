@@ -5,13 +5,11 @@ pragma solidity ^0.8.17;
 import "@openzeppelin/contracts/finance/PaymentSplitter.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import "@openzeppelin/contracts/utils/math/SafeCast.sol";
 
 import "./lib/LinearDutchAuction.sol";
 import "./lib/ERC721.sol";
-import "hardhat/console.sol";
 import {IScriptyBuilder, WrappedScriptRequest} from "./lib/scripty/IScriptyBuilder.sol";
-
-import "hardhat/console.sol";
 
 error NotAuthorized();
 error MaxSupplyReached();
@@ -19,6 +17,8 @@ error MaxSupplyReached();
 /// @title Gold
 /// @author @0x_jj
 contract Gold is ERC721, PaymentSplitter, Ownable {
+  using SafeCast for uint256;
+
   uint256 public totalSupply = 0;
   uint256 public constant MAX_SUPPLY = 700;
 
@@ -41,8 +41,8 @@ contract Gold is ERC721, PaymentSplitter, Ownable {
 
   // Track when we receive royalty payments
   struct RoyaltyReceipt {
-    uint256 timestamp;
-    uint256 amount;
+    uint64 timestamp;
+    uint192 amount;
   }
   uint256 public ethReceivedCount;
   RoyaltyReceipt[HISTORY_LENGTH] public ethReceipts;
@@ -167,14 +167,11 @@ contract Gold is ERC721, PaymentSplitter, Ownable {
     if (currentBalance > prevBalance) {
       latestWethBalance = currentBalance;
       wethReceipts[wethReceivedCount % HISTORY_LENGTH] = RoyaltyReceipt(
-        block.timestamp,
-        currentBalance - prevBalance
+        block.timestamp.toUint64(),
+        (currentBalance - prevBalance).toUint192()
       );
       wethReceivedCount++;
     }
-
-    uint256 endGas = gasleft();
-    console.log("gas left", endGas - startGas);
   }
 
   function supportsInterface(
@@ -186,8 +183,8 @@ contract Gold is ERC721, PaymentSplitter, Ownable {
   receive() external payable override {
     emit PaymentReceived(_msgSender(), msg.value);
     ethReceipts[ethReceivedCount % HISTORY_LENGTH] = RoyaltyReceipt(
-      block.timestamp,
-      msg.value
+      block.timestamp.toUint64(),
+      msg.value.toUint192()
     );
     ethReceivedCount += 1;
   }
