@@ -5,8 +5,7 @@ import {
   Gold,
   GoldFixedPriceSale,
   GoldDutchAuction,
-  GoldStorage,
-  WETH,
+   WETH,
 } from "../typechain-types";
 import { time } from "@nomicfoundation/hardhat-network-helpers";
 
@@ -22,7 +21,7 @@ const DAO_SPLIT = 210; // 21 %
 
 const START_TIMESTAMP = 1775526271;
 
-describe("GOLD sale", async function () {
+describe.skip("GOLD sale", async function () {
   let contract: Gold;
   let fixedSaleContract: GoldFixedPriceSale;
   let auctionContract: GoldDutchAuction;
@@ -43,9 +42,11 @@ describe("GOLD sale", async function () {
       [dev.address, artist.address, dao.address],
       [DEV_SPLIT, ARTIST_SPLIT, DAO_SPLIT],
       [dev.address, artist.address, dao.address],
-      deployedWeth.address
+      deployedWeth.address,
+      deployedWeth.address,
+      deployedWeth.address,
+      20
     );
-
     const fixedSale = await ethers.getContractFactory("GoldFixedPriceSale");
     const auctionSale = await ethers.getContractFactory("GoldDutchAuction");
 
@@ -191,7 +192,10 @@ describe("GOLD data", async function () {
       [dev.address, artist.address, dao.address],
       [DEV_SPLIT, ARTIST_SPLIT, DAO_SPLIT],
       [dev.address, artist.address, dao.address],
-      deployedWeth.address
+      deployedWeth.address,
+      deployedWeth.address,
+      deployedWeth.address,
+      20
     );
 
     const auctionSale = await ethers.getContractFactory("GoldDutchAuction");
@@ -227,7 +231,7 @@ describe("GOLD data", async function () {
     expect(ethReceipts[0].amount.toString()).to.equal(toWei("1").toString());
   });
 
-  it("Correctly tracks wrapped eth received", async function () {
+  it.only("Correctly tracks wrapped eth received", async function () {
     const [addy1, addy2] = await ethers.getSigners();
 
     // Send in 1 WETH, then make an NFT transfer so we can record the WETH

@@ -5,10 +5,10 @@ pragma solidity ^0.8.17;
 import "@openzeppelin/contracts/finance/PaymentSplitter.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import "@openzeppelin/contracts/utils/math/SafeCast.sol";
 
 import "./lib/LinearDutchAuction.sol";
 import "./lib/ERC721.sol";
-
 import {IScriptyBuilder, WrappedScriptRequest} from "./lib/scripty/IScriptyBuilder.sol";
 
 error NotAuthorized();
@@ -17,6 +17,8 @@ error MaxSupplyReached();
 /// @title Gold
 /// @author @0x_jj
 contract Gold is ERC721, PaymentSplitter, Ownable {
+  using SafeCast for uint256;
+
   uint256 public totalSupply = 0;
   uint256 public constant MAX_SUPPLY = 700;
 
@@ -39,14 +41,14 @@ contract Gold is ERC721, PaymentSplitter, Ownable {
 
   // Track when we receive royalty payments
   struct RoyaltyReceipt {
-    uint256 timestamp;
-    uint256 amount;
+    uint64 timestamp;
+    uint192 amount;
   }
   uint256 public ethReceivedCount;
   RoyaltyReceipt[HISTORY_LENGTH] public ethReceipts;
 
   // Track WETH roughly by checking balances between transfers
-  uint256[HISTORY_LENGTH] public wethBalanceHistory;
+  uint256 private latestWethBalance;
   RoyaltyReceipt[HISTORY_LENGTH] public wethReceipts;
   uint256 public wethReceivedCount;
 
@@ -154,21 +156,19 @@ contract Gold is ERC721, PaymentSplitter, Ownable {
     tokenData[tokenId].transferCount++;
     transferCount++;
 
+    uint256 startGas = gasleft();
     // Record WETH receipts, if any, attempting to match how we record native ETH receipts
     // We do this by checking the balance of the contract before and after the transfer, taking into account any WETH that has been released to payees
     // Of course this means we don't know when WETH was received multiple times between two transfers occurring, but that's fine, it's just a rough estimate
-    uint256 prevIndex = wethReceivedCount == 0
-      ? 0
-      : (wethReceivedCount - 1) % HISTORY_LENGTH;
-    uint256 index = wethReceivedCount % HISTORY_LENGTH;
-    uint256 prevBalance = wethBalanceHistory[prevIndex];
+    uint256 prevBalance = latestWethBalance;
     uint256 currentBalance = wethContract.balanceOf(address(this)) +
       totalReleased(wethContract);
+
     if (currentBalance > prevBalance) {
-      wethBalanceHistory[index] = currentBalance;
-      wethReceipts[index] = RoyaltyReceipt(
-        block.timestamp,
-        currentBalance - prevBalance
+      latestWethBalance = currentBalance;
+      wethReceipts[wethReceivedCount % HISTORY_LENGTH] = RoyaltyReceipt(
+        block.timestamp.toUint64(),
+        (currentBalance - prevBalance).toUint192()
       );
       wethReceivedCount++;
     }
@@ -183,8 +183,8 @@ contract Gold is ERC721, PaymentSplitter, Ownable {
   receive() external payable override {
     emit PaymentReceived(_msgSender(), msg.value);
     ethReceipts[ethReceivedCount % HISTORY_LENGTH] = RoyaltyReceipt(
-      block.timestamp,
-      msg.value
+      block.timestamp.toUint64(),
+      msg.value.toUint192()
     );
     ethReceivedCount += 1;
   }
