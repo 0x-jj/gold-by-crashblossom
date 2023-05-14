@@ -537,8 +537,8 @@ contract GoldRenderer {
   }
 
   function generateAllTraits() public view returns (Traits memory) {
-    uint256 tokenSeedIncrement = 1265412365874123;
-    uint256 tokenSeed = 1234567891011123;
+    uint256 tokenSeedIncrement = 12654123;
+    uint256 tokenSeed = 12345678;
 
     Seed memory seed = Seed({
       current: tokenSeed,

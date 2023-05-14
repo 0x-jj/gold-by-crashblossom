@@ -191,8 +191,8 @@ function generateColourNames(numberOfColours, seed) {
   }
   let r3 = nextInt(seed);
 
-  selected_color_names[selected_color_names.length - 1] =
-    selected_color_names[r3 % selected_color_names.length];
+  selected_color_names[selected_color_names.length] =
+    selected_color_names[r3 % numberOfColours];
 
   return selected_color_names;
 }
@@ -255,8 +255,8 @@ function generateLayerPaths(seed) {
 }
 
 function getAllTraits() {
-  let token_seed_increment = 1265412365874123;
-  let seed_token = 1234567891011123;
+  let token_seed_increment = 12654123;
+  let seed_token = 12345678;
 
   let seed = { current: seed_token, incrementor: token_seed_increment };
 
