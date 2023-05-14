@@ -156,7 +156,6 @@ contract Gold is ERC721, PaymentSplitter, Ownable {
     tokenData[tokenId].transferCount++;
     transferCount++;
 
-    uint256 startGas = gasleft();
     // Record WETH receipts, if any, attempting to match how we record native ETH receipts
     // We do this by checking the balance of the contract before and after the transfer, taking into account any WETH that has been released to payees
     // Of course this means we don't know when WETH was received multiple times between two transfers occurring, but that's fine, it's just a rough estimate

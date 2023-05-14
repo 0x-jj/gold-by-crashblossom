@@ -5,7 +5,8 @@ import {
   Gold,
   GoldFixedPriceSale,
   GoldDutchAuction,
-   WETH,
+  WETH,
+  GoldRenderer,
 } from "../typechain-types";
 import { time } from "@nomicfoundation/hardhat-network-helpers";
 
@@ -171,7 +172,7 @@ describe.skip("GOLD sale", async function () {
   // });
 });
 
-describe("GOLD data", async function () {
+describe.skip("GOLD data", async function () {
   let contract: Gold;
   let auctionContract: GoldDutchAuction;
   let deployer: SignerWithAddress;
@@ -293,4 +294,55 @@ describe("GOLD data", async function () {
   });
 });
 
- 
+describe("GOLD data", async function () {
+  let contract: Gold;
+  let auctionContract: GoldDutchAuction;
+  let renderer: GoldRenderer;
+
+  let deployer: SignerWithAddress;
+  let wethContract: WETH;
+
+  beforeEach(async () => {
+    await network.provider.send("hardhat_reset");
+    const [dev, artist, dao] = await ethers.getSigners();
+    deployer = dev;
+
+    const Weth = await ethers.getContractFactory("WETH");
+    const deployedWeth = await Weth.deploy();
+    wethContract = deployedWeth;
+    await deployedWeth.mint(dev.address, toWei("1000"));
+
+    const Gold = await ethers.getContractFactory("Gold");
+    contract = await Gold.deploy(
+      [dev.address, artist.address, dao.address],
+      [DEV_SPLIT, ARTIST_SPLIT, DAO_SPLIT],
+      [dev.address, artist.address, dao.address],
+      deployedWeth.address,
+      deployedWeth.address,
+      deployedWeth.address,
+      20
+    );
+
+    const auctionSale = await ethers.getContractFactory("GoldDutchAuction");
+
+    auctionContract = await auctionSale.deploy(
+      [dev.address, artist.address, dao.address],
+      [DEV_SPLIT, ARTIST_SPLIT, DAO_SPLIT],
+      contract.address
+    );
+
+    await contract.setSaleAddress(auctionContract.address);
+    await auctionContract.setAuctionStartPoint(START_TIMESTAMP);
+
+    await time.increaseTo(START_TIMESTAMP);
+    await auctionContract.buy({ value: toWei("4") });
+
+    const GoldRenderer = await ethers.getContractFactory("GoldRenderer");
+    renderer = await GoldRenderer.deploy();
+  });
+
+  it.only("Produces traits", async function () {
+    const traits = await renderer.callStatic.generateAllTraits();
+    console.log(traits);
+  });
+});
