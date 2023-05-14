@@ -449,7 +449,7 @@ contract GoldRenderer {
     uint256 numberOfColours,
     Seed memory seed
   ) public view returns (string[] memory) {
-    string[] memory selectedColorNames = new string[](numberOfColours);
+    string[] memory selectedColorNames = new string[](numberOfColours + 1); // +1 to also store the background colour
     for (uint256 i = 0; i < numberOfColours; i++) {
       uint256 r = nextSeed(seed);
 
@@ -474,8 +474,8 @@ contract GoldRenderer {
     uint256 r3 = nextSeed(seed);
 
     selectedColorNames[selectedColorNames.length - 1] = selectedColorNames[
-      r3 % selectedColorNames.length
-    ];
+      r3 % numberOfColours
+    ]; // Add the background colour
 
     return selectedColorNames;
   }
