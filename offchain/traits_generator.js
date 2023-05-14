@@ -152,14 +152,14 @@ let color_chance = [
   10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10,
 ];
 
-function nextSeed(seed) {
+function nextInt(seed) {
   seed.current += seed.incrementor;
   return seed.current % 100;
 }
 
 function generateNumberOfColours(seed) {
   for (let i = 0; i < _number_of_color_chances.length; i++) {
-    let r = nextSeed(seed);
+    let r = nextInt(seed);
     if (r > 100 - _number_of_color_chances[i]) {
       return i + 1;
     }
@@ -171,14 +171,14 @@ function generateColourNames(numberOfColours, seed) {
   let selected_color_names = [];
 
   for (let i = 0; i < numberOfColours; i++) {
-    let r = nextSeed(seed);
-    let r2 = nextSeed(seed);
+    let r = nextInt(seed);
+    let r2 = nextInt(seed);
     let j = r % color_chance.length;
     let c = color_names[j];
     let while_loop_breaker = 50;
     while (r2 < 100 - color_chance[j] || selected_color_names.includes(c)) {
-      r = nextSeed(seed);
-      r2 = nextSeed(seed);
+      r = nextInt(seed);
+      r2 = nextInt(seed);
       j = r % color_chance.length;
       c = color_names[j];
       if (while_loop_breaker <= 0) {
@@ -189,7 +189,7 @@ function generateColourNames(numberOfColours, seed) {
     }
     selected_color_names.push(c);
   }
-  let r3 = nextSeed(seed);
+  let r3 = nextInt(seed);
 
   selected_color_names[selected_color_names.length - 1] =
     selected_color_names[r3 % selected_color_names.length];
@@ -230,8 +230,8 @@ function generateLayerPaths(seed) {
         // milestone
         _indexes = milestone_layer_indexes;
       }
-      let r = nextSeed(seed) % _indexes.length;
-      let r2 = nextSeed(seed);
+      let r = nextInt(seed) % _indexes.length;
+      let r2 = nextInt(seed);
       let p = paths[_indexes[r]];
       let while_loop_breaker = 50;
       while (
@@ -244,8 +244,8 @@ function generateLayerPaths(seed) {
         } else {
           while_loop_breaker--;
         }
-        r = nextSeed(seed) % _indexes.length;
-        r2 = nextSeed(seed);
+        r = nextInt(seed) % _indexes.length;
+        r2 = nextInt(seed);
         p = paths[_indexes[r]];
       }
       selected_layer_paths.push(p);

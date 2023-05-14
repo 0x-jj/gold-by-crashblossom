@@ -428,7 +428,7 @@ contract GoldRenderer {
     string[] layerPaths;
   }
 
-  function nextSeed(Seed memory seed) internal pure returns (uint256) {
+  function nextInt(Seed memory seed) internal pure returns (uint256) {
     seed.current += seed.incrementor;
     return seed.current % 100;
   }
@@ -437,7 +437,7 @@ contract GoldRenderer {
     Seed memory seed
   ) public view returns (uint256) {
     for (uint256 i = 0; i < _number_of_color_chances.length; i++) {
-      uint256 r = nextSeed(seed);
+      uint256 r = nextInt(seed);
       if (r > 100 - _number_of_color_chances[i]) {
         return i + 1;
       }
@@ -451,16 +451,16 @@ contract GoldRenderer {
   ) public view returns (string[] memory) {
     string[] memory selectedColorNames = new string[](numberOfColours + 1); // +1 to also store the background colour
     for (uint256 i = 0; i < numberOfColours; i++) {
-      uint256 r = nextSeed(seed);
+      uint256 r = nextInt(seed);
 
-      uint256 r2 = nextSeed(seed);
+      uint256 r2 = nextInt(seed);
 
       uint256 j = r % color_chance.length;
       string memory c = color_names[j];
       uint256 while_loop_breaker = 50;
       while (r2 < 100 - color_chance[j] || findElement(selectedColorNames, c)) {
-        r = nextSeed(seed);
-        r2 = nextSeed(seed);
+        r = nextInt(seed);
+        r2 = nextInt(seed);
         j = r % color_chance.length;
         c = color_names[j];
         if (while_loop_breaker <= 0) {
@@ -471,7 +471,7 @@ contract GoldRenderer {
       }
       selectedColorNames[i] = c;
     }
-    uint256 r3 = nextSeed(seed);
+    uint256 r3 = nextInt(seed);
 
     selectedColorNames[selectedColorNames.length - 1] = selectedColorNames[
       r3 % numberOfColours
@@ -512,8 +512,8 @@ contract GoldRenderer {
         } else if (types[j] == 2) {
           _indexes = milestone_layer_indexes;
         }
-        uint256 r = nextSeed(seed) % _indexes.length;
-        uint256 r2 = nextSeed(seed);
+        uint256 r = nextInt(seed) % _indexes.length;
+        uint256 r2 = nextInt(seed);
         string memory p = paths[_indexes[r]];
         uint256 while_loop_breaker = 50;
         while (
@@ -525,8 +525,8 @@ contract GoldRenderer {
           } else {
             while_loop_breaker--;
           }
-          r = nextSeed(seed) % _indexes.length;
-          r2 = nextSeed(seed);
+          r = nextInt(seed) % _indexes.length;
+          r2 = nextInt(seed);
           p = paths[_indexes[r]];
         }
         selected_layer_paths[count] = p;
