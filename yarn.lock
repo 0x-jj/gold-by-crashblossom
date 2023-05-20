@@ -7229,10 +7229,10 @@ snake-case@^2.1.0:
   dependencies:
     no-case "^2.2.0"
 
-solady@0.0.62:
-  version "0.0.62"
-  resolved "https://registry.yarnpkg.com/solady/-/solady-0.0.62.tgz#f2ae706c5cbdd412f101a624536f6eafb0bbb032"
-  integrity sha512-L32eTb/CeZOsolx4aLL3x1egEYKT0soDUTy6BCWO5nEUIIG16idse2M0/2rT/dhfgXxuGYQZuXFQboS17OWKWA==
+solady@^0.0.94:
+  version "0.0.94"
+  resolved "https://registry.yarnpkg.com/solady/-/solady-0.0.94.tgz#4275dc282190766ea5bd65afa33c692295ba6a33"
+  integrity sha512-3a7ZAoZkYaOA/fHF8XT/Royv/T6KvJ68nWr8S4LwFm6mf3NpX/qAVXTXtWfJFZcZv9YMDttXIqE2NPPq+uZDjw==
 
 solc@0.7.3:
   version "0.7.3"

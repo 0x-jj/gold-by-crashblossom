@@ -1,20 +1,31 @@
+// SPDX-License-Identifier: MIT
+
 import "@openzeppelin/contracts/access/AccessControl.sol";
+import "solady/src/utils/Base64.sol";
+
 import {IScriptyBuilder, WrappedScriptRequest} from "./lib/scripty/IScriptyBuilder.sol";
 
 interface IGoldContract {}
 
-/// @title Gold
+/// @title GoldRenderer
 /// @author @0x_jj
 contract GoldRenderer is AccessControl {
   IGoldContract public goldContract;
 
   address public immutable scriptyStorageAddress;
   address public immutable scriptyBuilderAddress;
-  uint256 bufferSize;
+  uint256 private bufferSize;
+
+  string public callCode = "0x3bc5de30";
 
   struct Seed {
     uint256 current;
     uint256 incrementor;
+  }
+
+  struct Trait {
+    string typeName;
+    string valueName;
   }
 
   struct Traits {
@@ -45,42 +56,112 @@ contract GoldRenderer is AccessControl {
     goldContract = IGoldContract(_goldContract);
   }
 
+  function getSeedVariables(
+    uint256 tokenId
+  ) public view returns (uint256, uint256) {
+    return (12345678, 12654123);
+  }
+
+  function setCallCode(
+    string calldata callCode_
+  ) external onlyRole(DEFAULT_ADMIN_ROLE) {
+    callCode = callCode_;
+  }
+
   function tokenURI(uint256 tokenId) public view returns (string memory) {
-    WrappedScriptRequest[] memory requests = new WrappedScriptRequest[](4);
+    WrappedScriptRequest[] memory requests = new WrappedScriptRequest[](5);
+
+    (uint256 seedToken, uint256 tokenSeedIncrement) = getSeedVariables(tokenId);
 
     requests[0].name = "gold_crashblossom_base";
     requests[0].wrapType = 0; // <script>[script]</script>
     requests[0].contractAddress = scriptyStorageAddress;
 
-    requests[1].name = "gold_crashblossom_paths";
-    requests[1].wrapType = 2;
-    requests[1].contractAddress = scriptyStorageAddress;
+    requests[1].wrapType = 0; // <script>[script]</script>
+    requests[1].scriptContent = abi.encodePacked(
+      "let seedToken = ",
+      toString(seedToken),
+      ";",
+      "let tokenSeedIncrement = ",
+      toString(tokenSeedIncrement),
+      ";"
+      "let callCode = ",
+      callCode,
+      ";"
+    );
 
-    requests[2].name = "gunzipScripts-0.0.1";
-    requests[2].wrapType = 0; // <script>[script]</script>
+    requests[2].name = "gold_crashblossom_paths";
+    requests[2].wrapType = 2;
     requests[2].contractAddress = scriptyStorageAddress;
 
-    requests[3].name = "gold_crashblossom_main";
+    requests[3].name = "gunzipScripts-0.0.1";
     requests[3].wrapType = 0; // <script>[script]</script>
     requests[3].contractAddress = scriptyStorageAddress;
 
-    bytes memory doubleURLEncodedHTMLDataURI = IScriptyBuilder(
+    requests[4].name = "gold_crashblossom_main";
+    requests[4].wrapType = 0; // <script>[script]</script>
+    requests[4].contractAddress = scriptyStorageAddress;
+
+    bytes memory base64EncodedHTMLDataURI = IScriptyBuilder(
       scriptyBuilderAddress
-    ).getHTMLWrappedURLSafe(requests, bufferSize);
+    ).getEncodedHTMLWrapped(
+        requests,
+        bufferSize + requests[1].scriptContent.length + 17 // "<script>".length + "</script>".length = 17
+      );
+
+    Trait[] memory allTraits = generateAllTraits();
+
+    bytes memory metadata = abi.encodePacked(
+      '{"name":"GOLD #',
+      toString(tokenId),
+      '", "description":"GOLD is an on-chain generative artwork that changes with the market.","animation_url":"',
+      base64EncodedHTMLDataURI,
+      '", "attributes": [',
+      getJSONAttributes(allTraits),
+      "]}"
+    );
 
     return
       string(
         abi.encodePacked(
-          "data:application/json,",
-          // url encoded once
-          // {"name":"GOLD #<tokenId>", "description":"GOLD is an on-chain generative artwork that changes with the market.","animation_url":"
-          "%7B%22name%22%3A%22GOLD%20%23",
-          toString(tokenId),
-          "%22%2C%20%22description%22%3A%22GOLD%20is%20an%20on-chain%20generative%20artwork%20that%20changes%20with%20the%20market.%22%2C%22animation_url%22%3A%22",
-          doubleURLEncodedHTMLDataURI,
-          // url encoded once
-          // "}
-          "%22%7D"
+          "data:application/json;base64,",
+          Base64.encode(metadata)
+        )
+      );
+  }
+
+  function getJSONAttributes(
+    Trait[] memory allTraits
+  ) internal pure returns (string memory) {
+    string memory attributes;
+    uint256 i;
+    uint256 length = allTraits.length;
+    unchecked {
+      do {
+        attributes = string(
+          abi.encodePacked(
+            attributes,
+            getJSONTraitItem(allTraits[i], i == length - 1)
+          )
+        );
+      } while (++i < length);
+    }
+    return attributes;
+  }
+
+  function getJSONTraitItem(
+    Trait memory trait,
+    bool lastItem
+  ) internal pure returns (string memory) {
+    return
+      string(
+        abi.encodePacked(
+          '{"trait_type": "',
+          trait.typeName,
+          '", "value": "',
+          trait.valueName,
+          '"}',
+          lastItem ? "" : ","
         )
       );
   }
@@ -193,7 +274,7 @@ contract GoldRenderer is AccessControl {
     return selected_layer_paths;
   }
 
-  function generateAllTraits() public view returns (Traits memory) {
+  function generateAllTraits() public view returns (Trait[] memory) {
     uint256 tokenSeedIncrement = 12654123;
     uint256 tokenSeed = 12345678;
 
@@ -208,12 +289,26 @@ contract GoldRenderer is AccessControl {
       seed
     );
     string[] memory layerPaths = generateLayerPaths(seed);
-    return
-      Traits({
-        colourNames: selectedColours,
-        layerPaths: layerPaths,
-        numberOfColours: numberOfColours
+
+    Trait[] memory allTraits = new Trait[](
+      selectedColours.length + layerPaths.length
+    );
+
+    for (uint256 i = 0; i < selectedColours.length; i++) {
+      allTraits[i] = Trait({
+        typeName: string(abi.encodePacked("Colour ", toString(i + 1))),
+        valueName: selectedColours[i]
       });
+    }
+
+    for (uint256 i = 0; i < layerPaths.length; i++) {
+      allTraits[i + selectedColours.length] = Trait({
+        typeName: string(abi.encodePacked("Layer ", toString(i + 1))),
+        valueName: layerPaths[i]
+      });
+    }
+
+    return allTraits;
   }
 
   function stringEq(
