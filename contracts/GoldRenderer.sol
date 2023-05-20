@@ -28,12 +28,6 @@ contract GoldRenderer is AccessControl {
     string valueName;
   }
 
-  struct Traits {
-    uint256 numberOfColours;
-    string[] colourNames;
-    string[] layerPaths;
-  }
-
   constructor(
     address[] memory admins_,
     address _scriptyBuilderAddress,
