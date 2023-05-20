@@ -37,6 +37,7 @@ async function deployOrGetContracts(networkName: string) {
   const Weth = await ethers.getContractFactory("WETH");
   const wethContract = await Weth.deploy();
   await wethContract.deployed();
+  console.log("WETH deployed");
 
   return { scriptyStorageContract, scriptyBuilderContract, wethContract };
 }
@@ -173,11 +174,21 @@ async function main() {
   ];
 
   const rawBufferSize =
-    await scriptyBuilderContract.getBufferSizeForURLSafeHTMLWrapped(
+    await scriptyBuilderContract.getBufferSizeForHTMLWrapped(
       // @ts-ignore
       scriptRequests
     );
   console.log("Buffer size:", rawBufferSize);
+
+  const renderer = await ethers.getContractFactory("GoldRenderer");
+  const rendererContract = await renderer.deploy(
+    [dev.address, artist.address, dao.address],
+    scriptyBuilderContract.address,
+    scriptyStorageContract.address,
+    rawBufferSize
+  );
+  await rendererContract.deployed();
+  console.log("Renderer Contract is deployed", rendererContract.address);
 
   const nftContract = await (
     await ethers.getContractFactory("Gold")
@@ -186,23 +197,33 @@ async function main() {
     [DEV_SPLIT, ARTIST_SPLIT, DAO_SPLIT],
     [dev.address, artist.address, dao.address],
     wethContract.address,
-    scriptyBuilderContract.address,
-    scriptyStorageContract.address,
-    rawBufferSize
+    rendererContract.address
   );
   await nftContract.deployed();
   console.log("NFT Contract is deployed", nftContract.address);
 
+  rendererContract.setGoldContract(nftContract.address);
+
   const tokenURI = await nftContract.tokenURI(0);
-  const tokenURIDecoded = utilities.parseEscapedDataURI(tokenURI);
+  console.log("Got token URI");
+  const tokenURIDecoded = utilities.parseBase64DataURI(tokenURI);
+  console.log("Decoded token URI");
   const tokenURIJSONDecoded = JSON.parse(tokenURIDecoded);
-  const animationURL = utilities.parseEscapedDataURI(
+  console.log("Parsed decoded token URI");
+  const animationURL = utilities.parseBase64DataURI(
     tokenURIJSONDecoded.animation_url
   );
+  console.log("Parsed animation url");
 
-  utilities.writeFile(path.join(__dirname, "tokenURI.txt"), tokenURI);
-  utilities.writeFile(path.join(__dirname, "output.html"), animationURL);
-  utilities.writeFile(path.join(__dirname, "metadata.json"), tokenURIDecoded);
+  utilities.writeFile(path.join(__dirname, "output", "tokenURI.txt"), tokenURI);
+  utilities.writeFile(
+    path.join(__dirname, "output", "output.html"),
+    animationURL
+  );
+  utilities.writeFile(
+    path.join(__dirname, "output", "metadata.json"),
+    tokenURIDecoded
+  );
 
   // Verify contracts if network is goerli
   if (network.name == "goerli") {

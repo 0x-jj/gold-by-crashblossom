@@ -24,7 +24,7 @@
     "hardhat-contract-sizer": "^2.4.0",
     "mocha": "^9.2.0",
     "scripty.sol": "^1.0.2",
-    "solady": "0.0.62",
+    "solady": "^0.0.94",
     "ts-node": "^10.8.0",
     "typechain": "^8.0.0",
     "typescript": "^4.7.2"
