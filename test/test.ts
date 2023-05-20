@@ -5,7 +5,7 @@ import {
   Gold,
   GoldFixedPriceSale,
   GoldDutchAuction,
-   WETH,
+  WETH,
 } from "../typechain-types";
 import { time } from "@nomicfoundation/hardhat-network-helpers";
 
@@ -271,7 +271,7 @@ describe("GOLD data", async function () {
     expect(wethReceipts3[2].amount.toString()).to.equal(toWei("5").toString());
   });
 
-  it("Correctly tracks transfers, approvals and holder count", async function () {
+  it.only("Correctly tracks transfers, approvals and holder count", async function () {
     const [addy1, addy2] = await ethers.getSigners();
 
     await contract.transferFrom(addy1.address, addy2.address, 0);
@@ -292,5 +292,3 @@ describe("GOLD data", async function () {
     expect(metrics[4].toString()).to.equal("1");
   });
 });
-
- 

@@ -37,6 +37,7 @@ async function deployOrGetContracts(networkName: string) {
   const Weth = await ethers.getContractFactory("WETH");
   const wethContract = await Weth.deploy();
   await wethContract.deployed();
+  console.log("WETH deployed");
 
   return { scriptyStorageContract, scriptyBuilderContract, wethContract };
 }
@@ -179,6 +180,16 @@ async function main() {
     );
   console.log("Buffer size:", rawBufferSize);
 
+  const renderer = await ethers.getContractFactory("GoldRenderer");
+  const rendererContract = await renderer.deploy(
+    [dev.address, artist.address, dao.address],
+    scriptyBuilderContract.address,
+    scriptyStorageContract.address,
+    rawBufferSize
+  );
+  await rendererContract.deployed();
+  console.log("Renderer Contract is deployed", rendererContract.address);
+
   const nftContract = await (
     await ethers.getContractFactory("Gold")
   ).deploy(
@@ -186,12 +197,12 @@ async function main() {
     [DEV_SPLIT, ARTIST_SPLIT, DAO_SPLIT],
     [dev.address, artist.address, dao.address],
     wethContract.address,
-    scriptyBuilderContract.address,
-    scriptyStorageContract.address,
-    rawBufferSize
+    rendererContract.address
   );
   await nftContract.deployed();
   console.log("NFT Contract is deployed", nftContract.address);
+
+  rendererContract.setGoldContract(nftContract.address);
 
   const tokenURI = await nftContract.tokenURI(0);
   const tokenURIDecoded = utilities.parseEscapedDataURI(tokenURI);

@@ -41,8 +41,8 @@ contract ERC721 is Context, ERC165, IERC721, IERC721Metadata {
   mapping(address => mapping(address => bool)) private _operatorApprovals;
 
   // Tracking
-  uint256 public approvalCount; // Number of approvals that have happened on the contract
-  uint256[HISTORY_LENGTH] public latestApprovalTimestamps; // Timestamps of the last 31 approvals that happened on the contract
+  uint256 public approvalCount;
+  uint256[HISTORY_LENGTH] public latestApprovalTimestamps;
 
   /**
    * @dev Initializes the contract by setting a `name` and a `symbol` to the token collection.
