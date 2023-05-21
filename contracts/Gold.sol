@@ -190,13 +190,14 @@ contract Gold is ERC721, PaymentSplitter, AccessControl, Ownable {
   )
     external
     view
-    returns (uint256, uint256[HISTORY_LENGTH] memory, uint256, bytes32)
+    returns (uint256, uint256[HISTORY_LENGTH] memory, uint256, bytes32, uint256)
   {
     return (
       tokenData[tokenId].transferCount,
       tokenData[tokenId].latestTransferTimestamps,
       tokenData[tokenId].mintTimestamp,
-      tokenData[tokenId].seed
+      tokenData[tokenId].seed,
+      balanceOf(ownerOf(tokenId))
     );
   }
 

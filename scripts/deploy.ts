@@ -16,7 +16,7 @@ const delay = (ms: number) => {
   return new Promise((resolve) => setTimeout(resolve, ms));
 };
 
-async function deployOrGetContracts(networkName: string) {
+export async function deployOrGetContracts(networkName: string) {
   const contentStoreContract = await (
     await ethers.getContractFactory("ContentStore")
   ).deploy();
@@ -202,7 +202,19 @@ async function main() {
   await nftContract.deployed();
   console.log("NFT Contract is deployed", nftContract.address);
 
-  rendererContract.setGoldContract(nftContract.address);
+  const sale = await ethers.getContractFactory("GoldDutchAuction");
+  const saleContract = await sale.deploy(
+    [dev.address, artist.address, dao.address],
+    [DEV_SPLIT, ARTIST_SPLIT, DAO_SPLIT],
+    nftContract.address
+  );
+  console.log("Sale Contract is deployed", saleContract.address);
+
+  await nftContract.setSaleAddress(saleContract.address);
+  await rendererContract.setGoldContract(nftContract.address);
+
+  await nftContract.mint(dev.address);
+  console.log("Minted 1 NFT");
 
   const tokenURI = await nftContract.tokenURI(0);
   console.log("Got token URI");
