@@ -26,7 +26,7 @@ contract ERC721 is Context, ERC165, IERC721, IERC721Metadata {
   string private _symbol;
 
   // Number of datapoints to store
-  uint8 public constant HISTORY_LENGTH = 30;
+  uint256 public constant HISTORY_LENGTH = 200;
 
   // Mapping from token ID to owner address
   mapping(uint256 => address) private _owners;

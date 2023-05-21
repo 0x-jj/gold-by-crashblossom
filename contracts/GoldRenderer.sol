@@ -2,10 +2,23 @@
 
 import "@openzeppelin/contracts/access/AccessControl.sol";
 import "solady/src/utils/Base64.sol";
+import "@openzeppelin/contracts/utils/Strings.sol";
 
 import {IScriptyBuilder, WrappedScriptRequest} from "./lib/scripty/IScriptyBuilder.sol";
 
-interface IGoldContract {}
+interface IGoldContract {
+  struct TokenData {
+    uint256 transferCount;
+    uint256[30] latestTransferTimestamps;
+    uint256 mintTimestamp;
+    bytes32 seed;
+  }
+
+  // Mapping from token ID to token data
+  function tokenData(
+    uint256 tokenId
+  ) external view returns (uint256, uint256, bytes32);
+}
 
 /// @title GoldRenderer
 /// @author @0x_jj
@@ -52,8 +65,11 @@ contract GoldRenderer is AccessControl {
 
   function getSeedVariables(
     uint256 tokenId
-  ) public view returns (uint256, uint256) {
-    return (12345678, 12654123);
+  ) internal view returns (uint256, uint256) {
+    (, , bytes32 seed) = goldContract.tokenData(tokenId);
+    uint256 seedToken = uint256(seed) % (10 ** 6);
+    uint256 tokenSeedIncrement = 999 + tokenId;
+    return (seedToken, tokenSeedIncrement);
   }
 
   function setCallCode(
@@ -62,7 +78,7 @@ contract GoldRenderer is AccessControl {
     callCode = callCode_;
   }
 
-  function tokenURI(uint256 tokenId) public view returns (string memory) {
+  function tokenURI(uint256 tokenId) external view returns (string memory) {
     WrappedScriptRequest[] memory requests = new WrappedScriptRequest[](5);
 
     (uint256 seedToken, uint256 tokenSeedIncrement) = getSeedVariables(tokenId);
@@ -79,9 +95,15 @@ contract GoldRenderer is AccessControl {
       "let tokenSeedIncrement = ",
       toString(tokenSeedIncrement),
       ";"
-      "let callCode = ",
+      'let callCodeContractMetrics = "',
       callCode,
-      ";"
+      '";',
+      'let callCodeTokenMetrics = "',
+      callCode,
+      '";',
+      'let contractAddress = "',
+      Strings.toHexString(address(this)),
+      '";'
     );
 
     requests[2].name = "gold_crashblossom_paths";
@@ -199,7 +221,7 @@ contract GoldRenderer is AccessControl {
           break;
         } else {
           while_loop_breaker--;
-        } // not needed for the JS but may be good idea in Solidity version
+        }
       }
       selectedColorNames[i] = c;
     }

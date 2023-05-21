@@ -8,6 +8,7 @@ import {
   WETH,
 } from "../typechain-types";
 import { time } from "@nomicfoundation/hardhat-network-helpers";
+import { deployOrGetContracts } from "../scripts/deploy";
 
 const toWei = ethers.utils.parseEther;
 
@@ -21,48 +22,62 @@ const DAO_SPLIT = 210; // 21 %
 
 const START_TIMESTAMP = 1775526271;
 
-describe.skip("GOLD sale", async function () {
+async function deployContracts() {
+  const { scriptyStorageContract, scriptyBuilderContract, wethContract } =
+    await deployOrGetContracts(network.name);
+
+  const [dev, artist, dao] = await ethers.getSigners();
+
+  await wethContract.mint(dev.address, toWei("1000"));
+
+  const renderer = await ethers.getContractFactory("GoldRenderer");
+  const rendererContract = await renderer.deploy(
+    [dev.address, artist.address, dao.address],
+    scriptyBuilderContract.address,
+    scriptyStorageContract.address,
+    210000
+  );
+  await rendererContract.deployed();
+  console.log("Renderer Contract is deployed", rendererContract.address);
+
+  const nftContract = await (
+    await ethers.getContractFactory("Gold")
+  ).deploy(
+    [dev.address, artist.address, dao.address],
+    [DEV_SPLIT, ARTIST_SPLIT, DAO_SPLIT],
+    [dev.address, artist.address, dao.address],
+    wethContract.address,
+    rendererContract.address
+  );
+  await nftContract.deployed();
+  console.log("NFT Contract is deployed", nftContract.address);
+
+  rendererContract.setGoldContract(nftContract.address);
+
+  const auctionSale = await ethers.getContractFactory("GoldDutchAuction");
+
+  const auctionContract = await auctionSale.deploy(
+    [dev.address, artist.address, dao.address],
+    [DEV_SPLIT, ARTIST_SPLIT, DAO_SPLIT],
+    nftContract.address
+  );
+  await nftContract.setSaleAddress(auctionContract.address);
+
+  return { nftContract, rendererContract, auctionContract, wethContract };
+}
+
+describe("GOLD sale", async function () {
   let contract: Gold;
-  let fixedSaleContract: GoldFixedPriceSale;
   let auctionContract: GoldDutchAuction;
   let deployer: SignerWithAddress;
 
   beforeEach(async () => {
     await network.provider.send("hardhat_reset");
-    const [dev, artist, dao] = await ethers.getSigners();
-    deployer = dev;
-    const Gold = await ethers.getContractFactory("Gold");
-
-    const Weth = await ethers.getContractFactory("WETH");
-    const deployedWeth = await Weth.deploy();
-
-    await deployedWeth.mint(dev.address, toWei("1000"));
-
-    contract = await Gold.deploy(
-      [dev.address, artist.address, dao.address],
-      [DEV_SPLIT, ARTIST_SPLIT, DAO_SPLIT],
-      [dev.address, artist.address, dao.address],
-      deployedWeth.address,
-      deployedWeth.address,
-      deployedWeth.address,
-      20
-    );
-    const fixedSale = await ethers.getContractFactory("GoldFixedPriceSale");
-    const auctionSale = await ethers.getContractFactory("GoldDutchAuction");
-
-    fixedSaleContract = await fixedSale.deploy(
-      [dev.address, artist.address, dao.address],
-      [DEV_SPLIT, ARTIST_SPLIT, DAO_SPLIT],
-      contract.address
-    );
-
-    auctionContract = await auctionSale.deploy(
-      [dev.address, artist.address, dao.address],
-      [DEV_SPLIT, ARTIST_SPLIT, DAO_SPLIT],
-      contract.address
-    );
-
-    await contract.setSaleAddress(fixedSaleContract.address);
+    const contracts = await deployContracts();
+    contract = contracts.nftContract;
+    auctionContract = contracts.auctionContract;
+    const signers = await ethers.getSigners();
+    deployer = signers[0];
   });
 
   it("Can be deployed", async function () {
@@ -132,7 +147,7 @@ describe.skip("GOLD sale", async function () {
     await expect(await contract.ownerOf(0)).to.equal(deployer.address);
   });
 
-  it.only("Auction::Can successfully purchase and rebate", async function () {
+  it.skip("Auction::Can successfully purchase and rebate", async function () {
     await contract.setSaleAddress(auctionContract.address);
     await auctionContract.setAuctionStartPoint(START_TIMESTAMP);
     await time.increaseTo(START_TIMESTAMP + 300);
@@ -150,67 +165,26 @@ describe.skip("GOLD sale", async function () {
     // This should currently fail because the contract isnt holding balance
     await auctionContract.processRebateTo(deployer.address);
   });
-
-  it("Fixed Sale::Can mint free mint", async function () {
-    await contract.setSaleAddress(fixedSaleContract.address);
-    const [_, __, dao] = await ethers.getSigners();
-    await auctionContract.setAuctionStartPoint(START_TIMESTAMP);
-    await time.increaseTo(START_TIMESTAMP + 300);
-    await fixedSaleContract.purchaseFreeOfCharge(dao.address, 3);
-
-    await expect(await contract.ownerOf(0)).to.equal(dao.address);
-    await expect(await contract.ownerOf(1)).to.equal(dao.address);
-    await expect(await contract.ownerOf(2)).to.equal(dao.address);
-    await expect(await contract.totalSupply()).to.equal(3);
-  });
-
-  // it("Fixed Sale::Can mint at fixed price", async function () {
-  //   await contract.setSaleAddress(fixedSaleContract.address);
-  //   const [_, __, dao] = await ethers.getSigners();
-  //   await fixedSaleContract.buy({ value: toWei("0.3") });
-  // });
 });
 
 describe("GOLD data", async function () {
   let contract: Gold;
-  let auctionContract: GoldDutchAuction;
   let deployer: SignerWithAddress;
   let wethContract: WETH;
 
   beforeEach(async () => {
     await network.provider.send("hardhat_reset");
-    const [dev, artist, dao] = await ethers.getSigners();
-    deployer = dev;
+    const contracts = await deployContracts();
+    contract = contracts.nftContract;
+    wethContract = contracts.wethContract;
+    const signers = await ethers.getSigners();
+    deployer = signers[0];
 
-    const Weth = await ethers.getContractFactory("WETH");
-    const deployedWeth = await Weth.deploy();
-    wethContract = deployedWeth;
-    await deployedWeth.mint(dev.address, toWei("1000"));
-
-    const Gold = await ethers.getContractFactory("Gold");
-    contract = await Gold.deploy(
-      [dev.address, artist.address, dao.address],
-      [DEV_SPLIT, ARTIST_SPLIT, DAO_SPLIT],
-      [dev.address, artist.address, dao.address],
-      deployedWeth.address,
-      deployedWeth.address,
-      deployedWeth.address,
-      20
-    );
-
-    const auctionSale = await ethers.getContractFactory("GoldDutchAuction");
-
-    auctionContract = await auctionSale.deploy(
-      [dev.address, artist.address, dao.address],
-      [DEV_SPLIT, ARTIST_SPLIT, DAO_SPLIT],
-      contract.address
-    );
-
-    await contract.setSaleAddress(auctionContract.address);
-    await auctionContract.setAuctionStartPoint(START_TIMESTAMP);
+    await contract.setSaleAddress(contracts.auctionContract.address);
+    await contracts.auctionContract.setAuctionStartPoint(START_TIMESTAMP);
 
     await time.increaseTo(START_TIMESTAMP);
-    await auctionContract.buy({ value: toWei("4") });
+    await contracts.auctionContract.buy({ value: toWei("4") });
   });
 
   it("Correctly tracks token metrics", async function () {
@@ -231,7 +205,7 @@ describe("GOLD data", async function () {
     expect(ethReceipts[0].amount.toString()).to.equal(toWei("1").toString());
   });
 
-  it.only("Correctly tracks wrapped eth received", async function () {
+  it("Correctly tracks wrapped eth received", async function () {
     const [addy1, addy2] = await ethers.getSigners();
 
     // Send in 1 WETH, then make an NFT transfer so we can record the WETH
@@ -271,7 +245,7 @@ describe("GOLD data", async function () {
     expect(wethReceipts3[2].amount.toString()).to.equal(toWei("5").toString());
   });
 
-  it.only("Correctly tracks transfers, approvals and holder count", async function () {
+  it("Correctly tracks transfers, approvals and holder count", async function () {
     const [addy1, addy2] = await ethers.getSigners();
 
     await contract.transferFrom(addy1.address, addy2.address, 0);
