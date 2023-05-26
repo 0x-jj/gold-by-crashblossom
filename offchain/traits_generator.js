@@ -54,16 +54,21 @@ let layer_8_indexes = [26, 27, 28, 29, 30, 31, 32, 33];
 let layer_8_probabilities = [
   20, 10, 20, 25, 20, 20, 10, 27
 ];
-let hodl_layer_indexes = [34, 35, 2, 36, 3, 11, 37, 38, 14, 39, 40, 43, 44, 45, 0, 1, 47, 10, 48, 49, 13, 4, 5, 52, 53, 6, 7, 8, 57, 9, 19, 26, 22, 58, 59, 15, 61, 62, 16, 64, 65, 67, 32, 68, 17, 69, 27, 70, 28, 71, 72, 24, 73, 30, 74, 75, 76, 77, 78];
+let hodl_layer_indexes = [
+  3, 11, 45, 0, 1, 10, 49, 13, 4, 5, 52, 6, 7, 8, 9, 19, 26, 22, 58, 59, 15, 61, 
+  62, 16, 64, 65, 67, 32, 68, 17, 69, 27, 70, 28, 71, 24, 73, 30, 74, 75, 76, 78
+];
 let hodl_probabilities = [
-  10, 10, 7, 18, 20, 15, 10, 10, 5, 10, 5, 6, 5, 12, 8, 12, 15, 20, 6, 15, 20, 15, 7, 10, 6, 6, 7, 7, 20, 10, 
-  20, 20, 15, 25, 8, 11, 18, 12, 15, 10, 16, 7, 11, 18, 7, 13, 16, 12, 20, 6, 7, 9, 15, 20, 17, 10, 16, 15, 10
+  20, 15, 12, 8, 12, 20, 15, 20, 15, 7, 10, 6, 7, 7, 10, 20, 20, 15, 25, 8, 11, 18, 
+  12, 15, 10, 16, 7, 11, 18, 7, 13, 16, 12, 20, 6, 9, 15, 20, 17, 10, 16, 10
 ];
 let milestone_layer_indexes = [
-  0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 13, 14, 15, 16, 17, 18, 19, 21, 22, 24, 26, 27, 28, 29, 30, 31, 32, 33
+  0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 13, 14, 15, 16, 17, 18, 19, 21, 22, 24, 26, 
+  27, 28, 29, 30, 31, 32, 33
 ];
 let milestone_probabilities = [
-  8, 12, 7, 20, 15, 10, 10, 7, 10, 10, 20, 15, 20, 5, 10, 15, 10, 4, 20, 3, 15, 10, 20, 10, 20, 25, 20, 20, 10, 27
+  8, 12, 7, 20, 15, 10, 10, 7, 10, 10, 20, 15, 20, 5, 10, 15, 10, 4, 20, 3, 15, 10, 
+  20, 10, 20, 25, 20, 20, 10, 27
 ];
 
 // number of color chances - index 0 corresponds to 1 color, index 15 to 16 colors
@@ -103,13 +108,14 @@ function generateColourNames(numberOfColours, seed) {
     let r2 = nextInt(seed);
     let j = r % color_chance.length;
     let c = color_names[j];
-    let while_loop_breaker = 50;
+    let while_loop_breaker = 300;
     while (r2 < 100 - color_chance[j] || selected_color_names.includes(c)) {
       r = nextInt(seed);
       r2 = nextInt(seed);
       j = r % color_chance.length;
       c = color_names[j];
       if (while_loop_breaker <= 0) {
+        console.log("break");
         break;
       } else {
         while_loop_breaker--;
@@ -167,7 +173,7 @@ function generateLayerPaths(seed) {
       let r = nextInt(seed) % _indexes.length;
       let r2 = nextInt(seed);
       let p = paths[_indexes[r]];
-      let while_loop_breaker = 50;
+      let while_loop_breaker = 300;
       while (
         selected_layer_paths.includes(p) ||
         r2 < 100 - _probabilities[i]
