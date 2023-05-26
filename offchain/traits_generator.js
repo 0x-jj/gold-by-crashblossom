@@ -71,10 +71,9 @@ let milestone_probabilities = [
   20, 10, 20, 25, 20, 20, 10, 27
 ];
 
-// number of color chances - index 0 corresponds to 1 color, index 15 to 16 colors
-let _number_of_color_chances = [
-  5,20,50,10,0,0,0,5,0,0,0,0,0,0,0,5
-];
+// number of color chances
+let _number_of_colors =        [1, 8, 16, 2, 3, 4];
+let _number_of_color_chances = [5, 5, 5, 20, 50, 10];
 
 // The names of all color schemes
 let color_names = [
@@ -91,10 +90,10 @@ function nextInt(seed) {
 }
 
 function generateNumberOfColours(seed) {
-  for (let i = 0; i < _number_of_color_chances.length; i++) {
+  for (let i = 0; i < _number_of_colors.length; i++) {
     let r = nextInt(seed);
     if (r > 100 - _number_of_color_chances[i]) {
-      return i + 1;
+      return _number_of_colors[i];
     }
   }
   return 2; // if nothing else was selected we default to 2 colors
