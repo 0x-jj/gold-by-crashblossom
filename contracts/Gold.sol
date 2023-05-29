@@ -13,6 +13,7 @@ import "./lib/ERC721.sol";
 
 error NotAuthorized();
 error MaxSupplyReached();
+error ClaimingTooEarly();
 
 interface IGoldRenderer {
   function tokenURI(uint256 tokenId) external view returns (string memory);
@@ -36,6 +37,12 @@ contract Gold is ERC721, PaymentSplitter, AccessControl, Ownable {
     uint256[HISTORY_LENGTH] latestTransferTimestamps;
     uint256 mintTimestamp;
     bytes32 seed;
+    address held6MonthsClaimedBy;
+    address held12MonthsClaimedBy;
+    address held24MonthsClaimedBy;
+    address held60MonthsClaimedBy;
+    address held120MonthsClaimedBy;
+    address held240MonthsClaimedBy;
   }
 
   // Mapping from token ID to token data
@@ -104,6 +111,61 @@ contract Gold is ERC721, PaymentSplitter, AccessControl, Ownable {
     return goldRenderer.tokenURI(tokenId);
   }
 
+  function claimHodlLayers(uint256 tokenId, uint8 milestone) external {
+    if (ownerOf(tokenId) != _msgSender()) revert NotAuthorized();
+
+    uint256 lastTransferTimestamp = latestTransferTimestamp(tokenData[tokenId]);
+    uint256 timeSinceLastTransfer = block.timestamp - lastTransferTimestamp;
+
+    if (milestone == 0) {
+      if (tokenData[tokenId].held6MonthsClaimedBy != address(0))
+        revert NotAuthorized();
+
+      if (timeSinceLastTransfer < 6 * 30 days) revert ClaimingTooEarly();
+      tokenData[tokenId].held6MonthsClaimedBy = _msgSender();
+    }
+
+    if (milestone == 1) {
+      if (tokenData[tokenId].held12MonthsClaimedBy != address(0))
+        revert NotAuthorized();
+
+      if (timeSinceLastTransfer < 12 * 30 days) revert ClaimingTooEarly();
+      tokenData[tokenId].held12MonthsClaimedBy = _msgSender();
+    }
+
+    if (milestone == 2) {
+      if (tokenData[tokenId].held24MonthsClaimedBy != address(0))
+        revert NotAuthorized();
+
+      if (timeSinceLastTransfer < 24 * 30 days) revert ClaimingTooEarly();
+      tokenData[tokenId].held24MonthsClaimedBy = _msgSender();
+    }
+
+    if (milestone == 3) {
+      if (tokenData[tokenId].held60MonthsClaimedBy != address(0))
+        revert NotAuthorized();
+
+      if (timeSinceLastTransfer < 60 * 30 days) revert ClaimingTooEarly();
+      tokenData[tokenId].held60MonthsClaimedBy = _msgSender();
+    }
+
+    if (milestone == 4) {
+      if (tokenData[tokenId].held120MonthsClaimedBy != address(0))
+        revert NotAuthorized();
+
+      if (timeSinceLastTransfer < 120 * 30 days) revert ClaimingTooEarly();
+      tokenData[tokenId].held120MonthsClaimedBy = _msgSender();
+    }
+
+    if (milestone == 5) {
+      if (tokenData[tokenId].held240MonthsClaimedBy != address(0))
+        revert NotAuthorized();
+
+      if (timeSinceLastTransfer < 240 * 30 days) revert ClaimingTooEarly();
+      tokenData[tokenId].held240MonthsClaimedBy = _msgSender();
+    }
+  }
+
   function mint(address to) external {
     if (totalSupply >= MAX_SUPPLY) revert MaxSupplyReached();
     if (_msgSender() != sale) revert NotAuthorized();
@@ -150,14 +212,14 @@ contract Gold is ERC721, PaymentSplitter, AccessControl, Ownable {
       totalReleased(wethContract);
 
     if (currentBalance > prevBalance) {
-      wethStats.latestWethBalance = currentBalance.toUint192();
-      wethReceipts[
-        wethStats.wethReceivedCount % HISTORY_LENGTH
-      ] = RoyaltyReceipt(
+      stats.latestWethBalance = currentBalance.toUint192();
+      wethReceipts[stats.wethReceivedCount % HISTORY_LENGTH] = RoyaltyReceipt(
         block.timestamp.toUint64(),
         (currentBalance - prevBalance).toUint192()
       );
-      wethStats.wethReceivedCount++;
+      stats.wethReceivedCount++;
+
+      wethStats = stats;
     }
   }
 
@@ -214,6 +276,15 @@ contract Gold is ERC721, PaymentSplitter, AccessControl, Ownable {
       }
     }
     return count;
+  }
+
+  function latestTransferTimestamp(
+    TokenData memory _tokenData
+  ) internal returns (uint256) {
+    return
+      _tokenData.latestTransferTimestamps[
+        (_tokenData.transferCount - 1) % HISTORY_LENGTH
+      ];
   }
 
   function supportsInterface(
