@@ -132,9 +132,9 @@ contract GoldRenderer is AccessControl {
     Trait[] memory allTraits = generateAllTraits();
 
     bytes memory metadata = abi.encodePacked(
-      '{"name":"GOLD #',
+      '{"name":"TEST #',
       toString(tokenId),
-      '", "description":"GOLD is an on-chain generative artwork that changes with the market.","animation_url":"',
+      '", "description":"Test description.","animation_url":"',
       base64EncodedHTMLDataURI,
       '", "attributes": [',
       getJSONAttributes(allTraits),
