@@ -12,7 +12,26 @@
     width: auto;
     aspect-ratio: 6/8;
     position: absolute;
-}`;
+}
+.prompt-container{
+    position: absolute;
+    background: #ffc512;
+    width: 50ch;
+    padding: 10px;
+    padding-top: 0;
+    font-family: Helvetica;
+    font-weight: bold;
+}
+.prompt{
+    border-style: solid;
+    border-width: 3px;
+    border-color: black;
+    background: #ffc512;
+    width: 75ch;
+    font-family: Helvetica;
+    font-weight: bold;
+    width: 98%;
+} `;
   const head = document.head;
   const style = document.createElement("style");
 
