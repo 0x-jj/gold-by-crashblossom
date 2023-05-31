@@ -92,6 +92,7 @@ function nextInt(seed) {
 function generateNumberOfColours(seed) {
   for (let i = 0; i < _number_of_colors.length; i++) {
     let r = nextInt(seed);
+        // let r = Math.random() * 100;
     if (r > 100 - _number_of_color_chances[i]) {
       return _number_of_colors[i];
     }
@@ -194,8 +195,8 @@ function generateLayerPaths(seed) {
 }
 
 function getAllTraits() {
-  let token_seed_increment = 4545;
-  let seed_token = 896529;
+  let token_seed_increment = 1001;
+  let seed_token = 739170;
 
   let seed = { current: seed_token, incrementor: token_seed_increment };
 
