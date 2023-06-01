@@ -90,11 +90,12 @@ function nextInt(seed) {
 }
 
 function generateNumberOfColours(seed) {
-  for (let i = 0; i < _number_of_colors.length; i++) {
-    let r = nextInt(seed);
-        // let r = Math.random() * 100;
-    if (r > 100 - _number_of_color_chances[i]) {
-      return _number_of_colors[i];
+  for (let j = 0; j < 300; j++) {
+    for (let i = 0; i < _number_of_colors.length; i++) {
+      let r = nextInt(seed);
+      if (r > 100 - _number_of_color_chances[i]) {
+        return _number_of_colors[i];
+      }
     }
   }
   return 2; // if nothing else was selected we default to 2 colors
