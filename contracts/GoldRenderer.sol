@@ -19,8 +19,7 @@ interface IGoldContract {
     uint256 tokenId
   ) external view returns (uint256, uint256, bytes32);
 
-  function getSelectors(
-  ) external view returns (string memory, string memory);
+  function getSelectors() external view returns (string memory, string memory);
 }
 
 /// @title GoldRenderer
@@ -31,8 +30,6 @@ contract GoldRenderer is AccessControl {
   address public immutable scriptyStorageAddress;
   address public immutable scriptyBuilderAddress;
   uint256 private bufferSize;
-
-  string public callCode = "0x3bc5de30";
 
   struct Seed {
     uint256 current;
@@ -75,42 +72,45 @@ contract GoldRenderer is AccessControl {
     return (seedToken, tokenSeedIncrement);
   }
 
-  function setCallCode(
-    string calldata callCode_
-  ) external onlyRole(DEFAULT_ADMIN_ROLE) {
-    callCode = callCode_;
-  }
-
   function tokenURI(uint256 tokenId) external view returns (string memory) {
     WrappedScriptRequest[] memory requests = new WrappedScriptRequest[](5);
 
     (uint256 seedToken, uint256 tokenSeedIncrement) = getSeedVariables(tokenId);
-    (string memory contractMetricsSelector, string memory tokenMetricsSelector) = goldContract.getSelectors();
+    (
+      string memory contractMetricsSelector,
+      string memory tokenMetricsSelector
+    ) = goldContract.getSelectors();
 
-    requests[0].name = "gold_crashblossom_base";
+    requests[0].name = "gold_by_crashblossom_base";
     requests[0].wrapType = 0; // <script>[script]</script>
     requests[0].contractAddress = scriptyStorageAddress;
 
     requests[1].wrapType = 0; // <script>[script]</script>
     requests[1].scriptContent = abi.encodePacked(
-      "let q = ",
+      "let u = ",
       toString(seedToken),
       ";",
-      "let f = ",
+      "let s = ",
       toString(tokenSeedIncrement),
+      ";",
+      "let F = ",
+      toString(tokenId),
+      ";",
+      "let q = ",
+      toString(1686791700), // TODO: remove hardcode
       ";"
-      'let E = "',
+      'let j = "',
       contractMetricsSelector,
       '";',
-      'let O = "',
+      'let P = "',
       tokenMetricsSelector,
       '";',
-      'let $ = "',
-      Strings.toHexString(address(this)),
+      'let E = "',
+      Strings.toHexString(address(goldContract)),
       '";'
     );
 
-    requests[2].name = "gold_crashblossom_paths";
+    requests[2].name = "gold_by_crashblossom_paths";
     requests[2].wrapType = 2;
     requests[2].contractAddress = scriptyStorageAddress;
 
@@ -118,7 +118,7 @@ contract GoldRenderer is AccessControl {
     requests[3].wrapType = 0; // <script>[script]</script>
     requests[3].contractAddress = scriptyStorageAddress;
 
-    requests[4].name = "gold_crashblossom_main";
+    requests[4].name = "gold_by_crashblossom_main";
     requests[4].wrapType = 0; // <script>[script]</script>
     requests[4].contractAddress = scriptyStorageAddress;
 
@@ -129,15 +129,13 @@ contract GoldRenderer is AccessControl {
         bufferSize + requests[1].scriptContent.length + 17 // "<script>".length + "</script>".length = 17
       );
 
-    Trait[] memory allTraits = generateAllTraits();
-
     bytes memory metadata = abi.encodePacked(
       '{"name":"TEST #',
       toString(tokenId),
       '", "description":"Test description.","animation_url":"',
       base64EncodedHTMLDataURI,
       '", "attributes": [',
-      getJSONAttributes(allTraits),
+      getJSONAttributes(generateAllTraits(tokenId)),
       "]}"
     );
 
@@ -299,9 +297,10 @@ contract GoldRenderer is AccessControl {
     return selected_layer_paths;
   }
 
-  function generateAllTraits() public view returns (Trait[] memory) {
-    uint256 tokenSeedIncrement = 12654123;
-    uint256 tokenSeed = 12345678;
+  function generateAllTraits(
+    uint256 tokenId
+  ) public view returns (Trait[] memory) {
+    (uint256 tokenSeed, uint256 tokenSeedIncrement) = getSeedVariables(tokenId);
 
     Seed memory seed = Seed({
       current: tokenSeed,

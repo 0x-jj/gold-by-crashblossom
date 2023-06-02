@@ -110,18 +110,12 @@ async function storeScript(
     script = utilities.toGZIPBase64String(script);
   }
 
-  const scriptChunks = utilities.chunkSubstr(
-    script,
-    network.name !== "goerli" ? 24575 : 1000
-  );
+  const scriptChunks = utilities.chunkSubstr(script, 24575);
 
   if (storedScript.owner === ethers.constants.AddressZero) {
     // First create the script in the storage contract
     await waitIfNeeded(
-      await storageContract.createScript(name, utilities.stringToBytes(name), {
-        gasPrice: ethers.utils.parseUnits("100", "gwei"),
-        gasLimit: 30_000_000,
-      })
+      await storageContract.createScript(name, utilities.stringToBytes(name))
     );
   }
 
@@ -159,23 +153,23 @@ async function main() {
 
   const [dev, artist, dao] = await ethers.getSigners();
 
-   
   // Deploy or use already deployed contracts depending on the network that script runs on
   console.log("Deploying contracts");
   console.log("Network name:", network.name);
+  console.log("Deployer:", dev.address);
 
   const { scriptyStorageContract, scriptyBuilderContract, wethContract } =
     await deployOrGetContracts(network.name);
 
   await storeScript(
     scriptyStorageContract,
-    "gold_crashblossom_base",
+    "gold_by_crashblossom_base",
     "scripts/goldBase.js"
   );
 
   await storeScript(
     scriptyStorageContract,
-    "gold_crashblossom_paths",
+    "gold_by_crashblossom_paths",
     "scripts/paths.js",
     true
   );
@@ -188,13 +182,13 @@ async function main() {
 
   await storeScript(
     scriptyStorageContract,
-    "gold_crashblossom_main",
+    "gold_by_crashblossom_main",
     "scripts/main.js"
   );
 
   const scriptRequests = [
     {
-      name: "gold_crashblossom_base",
+      name: "gold_by_crashblossom_base",
       contractAddress: scriptyStorageContract.address,
       contractData: 0,
       wrapType: 0,
@@ -203,7 +197,7 @@ async function main() {
       scriptContent: utilities.emptyBytes(),
     },
     {
-      name: "gold_crashblossom_paths",
+      name: "gold_by_crashblossom_paths",
       contractAddress: scriptyStorageContract.address,
       contractData: 0,
       wrapType: 2,
@@ -221,7 +215,7 @@ async function main() {
       scriptContent: utilities.emptyBytes(),
     },
     {
-      name: "gold_crashblossom_main",
+      name: "gold_by_crashblossom_main",
       contractAddress: scriptyStorageContract.address,
       contractData: 0,
       wrapType: 0,
@@ -260,15 +254,15 @@ async function main() {
   await nftContract.deployed();
   console.log("NFT Contract is deployed", nftContract.address);
 
-  const sale = await ethers.getContractFactory("GoldDutchAuction");
-  const saleContract = await sale.deploy(
-    [dev.address, artist.address, dao.address],
-    [DEV_SPLIT, ARTIST_SPLIT, DAO_SPLIT],
-    nftContract.address
-  );
-  console.log("Sale Contract is deployed", saleContract.address);
+  // const sale = await ethers.getContractFactory("GoldDutchAuction");
+  // const saleContract = await sale.deploy(
+  //   [dev.address, artist.address, dao.address],
+  //   [DEV_SPLIT, ARTIST_SPLIT, DAO_SPLIT],
+  //   nftContract.address
+  // );
+  // console.log("Sale Contract is deployed", saleContract.address);
 
-  await nftContract.setSaleAddress(saleContract.address);
+  // await nftContract.setSaleAddress(saleContract.address);
   await rendererContract.setGoldContract(nftContract.address);
 
   await nftContract.mint(dev.address);
