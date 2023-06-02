@@ -166,6 +166,32 @@ contract Gold is ERC721, PaymentSplitter, AccessControl, Ownable {
     }
   }
 
+  function numberOfClaimedPlates(
+    uint256 tokenId
+  ) public view returns (uint256) {
+    uint256 count = 0;
+    TokenData memory td = tokenData[tokenId];
+    if (td.held6MonthsClaimedBy != address(0)) count++;
+    if (td.held12MonthsClaimedBy != address(0)) count++;
+    if (td.held24MonthsClaimedBy != address(0)) count++;
+    if (td.held60MonthsClaimedBy != address(0)) count++;
+    if (td.held120MonthsClaimedBy != address(0)) count++;
+    if (td.held240MonthsClaimedBy != address(0)) count++;
+    return count;
+  }
+
+  function numberOfVestedPlates(uint256 tokenId) external returns (uint256) {
+    uint256 count = 0;
+    uint256 mintTimestamp = tokenData[tokenId].mintTimestamp;
+    if (block.timestamp > (mintTimestamp + (6 * 30 days))) count++;
+    if (block.timestamp > (mintTimestamp + (12 * 30 days))) count++;
+    if (block.timestamp > (mintTimestamp + (24 * 30 days))) count++;
+    if (block.timestamp > (mintTimestamp + (60 * 30 days))) count++;
+    if (block.timestamp > (mintTimestamp + (120 * 30 days))) count++;
+    if (block.timestamp > (mintTimestamp + (240 * 30 days))) count++;
+    return count;
+  }
+
   function mint(address to) external {
     if (totalSupply >= MAX_SUPPLY) revert MaxSupplyReached();
     // TODO: UNCOMMENT - if (_msgSender() != sale) revert NotAuthorized();
@@ -252,7 +278,14 @@ contract Gold is ERC721, PaymentSplitter, AccessControl, Ownable {
   )
     external
     view
-    returns (uint256, uint256[HISTORY_LENGTH] memory, uint256, bytes32, uint256, uint256)
+    returns (
+      uint256,
+      uint256[HISTORY_LENGTH] memory,
+      uint256,
+      bytes32,
+      uint256,
+      uint256
+    )
   {
     return (
       tokenData[tokenId].transferCount,
@@ -260,7 +293,7 @@ contract Gold is ERC721, PaymentSplitter, AccessControl, Ownable {
       tokenData[tokenId].mintTimestamp,
       tokenData[tokenId].seed,
       balanceOf(ownerOf(tokenId)),
-      2 // TODO: remove hardcode
+      numberOfClaimedPlates(tokenId)
     );
   }
 

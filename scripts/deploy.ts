@@ -126,7 +126,8 @@ async function storeScript(
     await waitIfNeeded(
       await storageContract.addChunkToScript(
         name,
-        utilities.stringToBytes(scriptChunks[i])
+        utilities.stringToBytes(scriptChunks[i]),
+        { gasLimit: 500000000 }
       )
     );
     console.log(
@@ -237,7 +238,8 @@ async function main() {
     [dev.address, artist.address, dao.address],
     scriptyBuilderContract.address,
     scriptyStorageContract.address,
-    rawBufferSize
+    rawBufferSize,
+    "https://arweave.net/gold/"
   );
   await rendererContract.deployed();
   console.log("Renderer Contract is deployed", rendererContract.address);

@@ -2,11 +2,11 @@ import { ethers } from "hardhat";
 import * as utilities from "../utils";
 import path from "path";
 
-const contractAddress = "0x087027C87C116C68EF0158d2487A335705FF4a72";
+const contractAddress = "0x93915aB036eF65C990fe54080380404ef050E1b1";
 
 async function main(storeData?: boolean) {
   const renderer = await ethers.getContractAt("Gold", contractAddress);
-  const tokenUri = await renderer.tokenURI(1);
+  const tokenUri = await renderer.tokenURI(0);
 
   if (storeData) {
     store(tokenUri);

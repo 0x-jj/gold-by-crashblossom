@@ -20,6 +20,16 @@ interface IGoldContract {
   ) external view returns (uint256, uint256, bytes32);
 
   function getSelectors() external view returns (string memory, string memory);
+
+  function numberOfClaimedPlates(
+    uint256 tokenId
+  ) external view returns (uint256);
+
+  function numberOfVestedPlates(
+    uint256 tokenId
+  ) external view returns (uint256);
+
+  function totalSupply() external view returns (uint256);
 }
 
 /// @title GoldRenderer
@@ -30,6 +40,8 @@ contract GoldRenderer is AccessControl {
   address public immutable scriptyStorageAddress;
   address public immutable scriptyBuilderAddress;
   uint256 private bufferSize;
+
+  string public baseImageURI;
 
   struct Seed {
     uint256 current;
@@ -45,7 +57,8 @@ contract GoldRenderer is AccessControl {
     address[] memory admins_,
     address _scriptyBuilderAddress,
     address _scriptyStorageAddress,
-    uint256 bufferSize_
+    uint256 bufferSize_,
+    string memory baseImageURI_
   ) {
     _grantRole(DEFAULT_ADMIN_ROLE, _msgSender());
     for (uint256 i = 0; i < admins_.length; i++) {
@@ -55,6 +68,7 @@ contract GoldRenderer is AccessControl {
     scriptyStorageAddress = _scriptyStorageAddress;
     scriptyBuilderAddress = _scriptyBuilderAddress;
     bufferSize = bufferSize_;
+    baseImageURI = baseImageURI_;
   }
 
   function setGoldContract(
@@ -63,19 +77,53 @@ contract GoldRenderer is AccessControl {
     goldContract = IGoldContract(_goldContract);
   }
 
+  function setBaseImageURI(
+    string calldata uri
+  ) public onlyRole(DEFAULT_ADMIN_ROLE) {
+    baseImageURI = uri;
+  }
+
   function getSeedVariables(
     uint256 tokenId
-  ) internal view returns (uint256, uint256) {
-    (, , bytes32 seed) = goldContract.tokenData(tokenId);
+  ) internal view returns (uint256, uint256, uint256) {
+    (, uint256 mintTimestamp, bytes32 seed) = goldContract.tokenData(tokenId);
     uint256 seedToken = uint256(seed) % (10 ** 6);
     uint256 tokenSeedIncrement = 999 + tokenId;
-    return (seedToken, tokenSeedIncrement);
+    return (seedToken, tokenSeedIncrement, mintTimestamp);
+  }
+
+  function getMetadataObject(
+    bytes memory animationUrl,
+    uint256 tokenId
+  ) internal view returns (bytes memory) {
+    string memory tid = toString(tokenId);
+    return
+      abi.encodePacked(
+        '{"name":"TEST #',
+        tid,
+        '", "description":"Test description.",',
+        '"external_url": "https://making.gold/gallery/',
+        tid,
+        '", "image": "',
+        baseImageURI,
+        tid,
+        '"',
+        ', "animation_url":"',
+        animationUrl,
+        '", "attributes": [',
+        getJSONAttributes(generateAllTraits(tokenId)),
+        "]}"
+      );
   }
 
   function tokenURI(uint256 tokenId) external view returns (string memory) {
     WrappedScriptRequest[] memory requests = new WrappedScriptRequest[](5);
 
-    (uint256 seedToken, uint256 tokenSeedIncrement) = getSeedVariables(tokenId);
+    (
+      uint256 seedToken,
+      uint256 tokenSeedIncrement,
+      uint256 mintTimestamp
+    ) = getSeedVariables(tokenId);
     (
       string memory contractMetricsSelector,
       string memory tokenMetricsSelector
@@ -96,8 +144,11 @@ contract GoldRenderer is AccessControl {
       "let F = ",
       toString(tokenId),
       ";",
+      "let O = ",
+      toString(goldContract.totalSupply()),
+      ";",
       "let q = ",
-      toString(1686791700), // TODO: remove hardcode
+      toString(mintTimestamp),
       ";"
       'let j = "',
       contractMetricsSelector,
@@ -129,21 +180,11 @@ contract GoldRenderer is AccessControl {
         bufferSize + requests[1].scriptContent.length + 17 // "<script>".length + "</script>".length = 17
       );
 
-    bytes memory metadata = abi.encodePacked(
-      '{"name":"TEST #',
-      toString(tokenId),
-      '", "description":"Test description.","animation_url":"',
-      base64EncodedHTMLDataURI,
-      '", "attributes": [',
-      getJSONAttributes(generateAllTraits(tokenId)),
-      "]}"
-    );
-
     return
       string(
         abi.encodePacked(
           "data:application/json;base64,",
-          Base64.encode(metadata)
+          Base64.encode(getMetadataObject(base64EncodedHTMLDataURI, tokenId))
         )
       );
   }
@@ -192,10 +233,12 @@ contract GoldRenderer is AccessControl {
   function generateNumberOfColours(
     Seed memory seed
   ) public view returns (uint256) {
-    for (uint256 i = 0; i < _number_of_colors.length; i++) {
-      uint256 r = nextInt(seed);
-      if (r > 100 - _number_of_color_chances[i]) {
-        return _number_of_colors[i];
+    for (uint256 j = 0; j < 300; j++) {
+      for (uint256 i = 0; i < _number_of_colors.length; i++) {
+        uint256 r = nextInt(seed);
+        if (r > 100 - _number_of_color_chances[i]) {
+          return _number_of_colors[i];
+        }
       }
     }
     return 2; // if nothing else was selected we default to 2 colors
@@ -300,7 +343,12 @@ contract GoldRenderer is AccessControl {
   function generateAllTraits(
     uint256 tokenId
   ) public view returns (Trait[] memory) {
-    (uint256 tokenSeed, uint256 tokenSeedIncrement) = getSeedVariables(tokenId);
+    (uint256 tokenSeed, uint256 tokenSeedIncrement, ) = getSeedVariables(
+      tokenId
+    );
+
+    uint256 claimedPlateCount = goldContract.numberOfClaimedPlates(tokenId);
+    uint256 vestedPlateCount = goldContract.numberOfVestedPlates(tokenId);
 
     Seed memory seed = Seed({
       current: tokenSeed,
@@ -315,21 +363,46 @@ contract GoldRenderer is AccessControl {
     string[] memory layerPaths = generateLayerPaths(seed);
 
     Trait[] memory allTraits = new Trait[](
-      selectedColours.length + layerPaths.length
+      selectedColours.length + 8 + claimedPlateCount + vestedPlateCount
     );
 
+    uint256 currentIndex = 0;
+
     for (uint256 i = 0; i < selectedColours.length; i++) {
-      allTraits[i] = Trait({
+      allTraits[currentIndex] = Trait({
         typeName: string(abi.encodePacked("Colour ", toString(i + 1))),
         valueName: selectedColours[i]
       });
+      currentIndex++;
     }
 
-    for (uint256 i = 0; i < layerPaths.length; i++) {
-      allTraits[i + selectedColours.length] = Trait({
-        typeName: string(abi.encodePacked("Layer ", toString(i + 1))),
+    for (uint256 i = 0; i < 8; i++) {
+      allTraits[currentIndex] = Trait({
+        typeName: string(
+          abi.encodePacked(
+            i % 2 == 0 ? "Plate Layer " : "Cluster Layer ",
+            toString((i / 2) + 1)
+          )
+        ),
         valueName: layerPaths[i]
       });
+      currentIndex++;
+    }
+
+    for (uint256 i = 0; i < claimedPlateCount; i++) {
+      allTraits[currentIndex] = Trait({
+        typeName: string(abi.encodePacked("Claimed Layer ", toString(i + 1))),
+        valueName: layerPaths[i + 8]
+      });
+      currentIndex++;
+    }
+
+    for (uint256 i = 0; i < claimedPlateCount; i++) {
+      allTraits[currentIndex] = Trait({
+        typeName: string(abi.encodePacked("Vested Layer ", toString(i + 1))),
+        valueName: layerPaths[i + 16]
+      });
+      currentIndex++;
     }
 
     return allTraits;
