@@ -143,23 +143,43 @@ describe("GOLD sale", async function () {
     await expect(await contract.ownerOf(0)).to.equal(deployer.address);
   });
 
-  it.skip("Auction::Can successfully purchase and rebate", async function () {
+  it("Auction::Can successfully purchase and rebate", async function () {
+    const signers = await ethers.getSigners();
+
     await contract.setSaleAddress(auctionContract.address);
     await auctionContract.setAuctionStartPoint(START_TIMESTAMP);
     await time.increaseTo(START_TIMESTAMP + 300);
     await auctionContract.buy({ value: toWei("3.8") });
 
+    // Go down two intervals
+    await time.increaseTo(START_TIMESTAMP + 300 * 2);
+    // Should be paying 3.6. Send 4 and see if refunds work
+    await auctionContract.connect(signers[1]).buy({ value: toWei("4") });
+
     // Get down to base price
-    await time.increaseTo(START_TIMESTAMP + 300 * 1000);
+    await time.increaseTo(START_TIMESTAMP + 300 * 19);
     await auctionContract.buy({ value: toWei("0.4") });
 
-    const refunded = await auctionContract.callStatic.processRebateTo(
-      deployer.address
-    );
-    await expect(refunded.toString()).to.equal(toWei("3.4"));
+    const refunded2 = await auctionContract.callStatic.processRebate();
+    expect(refunded2.toString()).to.equal(toWei("3.4"));
 
-    // This should currently fail because the contract isnt holding balance
-    await auctionContract.processRebateTo(deployer.address);
+    const refunded3 = await auctionContract
+      .connect(signers[1])
+      .callStatic.processRebate();
+    expect(refunded3.toString()).to.equal(toWei("3.2"));
+
+    await auctionContract.processRebate();
+    await auctionContract.connect(signers[1]).processRebate();
+
+    // Verify we can't rebate again
+
+    const refunded4 = await auctionContract.callStatic.processRebate();
+    expect(refunded4.toString()).to.equal(toWei("0"));
+
+    const refunded5 = await auctionContract
+      .connect(signers[1])
+      .callStatic.processRebate();
+    expect(refunded5.toString()).to.equal(toWei("0"));
   });
 });
 

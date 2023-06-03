@@ -4,9 +4,12 @@ pragma solidity >=0.8.0 <0.9.0;
 
 import "./Seller.sol";
 import "@openzeppelin/contracts/utils/math/Math.sol";
+import "@openzeppelin/contracts/utils/Address.sol";
 
 /// @notice A Seller with a linearly decreasing price.
 abstract contract LinearDutchAuction is Seller {
+  using Address for address payable;
+
   /**
     @param unit The unit of "time" used for decreasing prices, block number or
     timestamp. NOTE: See the comment on AuctionIntervalUnit re use of Time as a
@@ -109,6 +112,10 @@ abstract contract LinearDutchAuction is Seller {
   function cost(uint256 n, uint256) public view override returns (uint256) {
     DutchAuctionConfig storage cfg = dutchAuctionConfig;
 
+    if (this.totalSold() == sellerConfig.totalInventory) {
+      return latestPurchasePrice;
+    }
+
     uint256 current;
     if (cfg.unit == AuctionIntervalUnit.Block) {
       current = block.number;
@@ -127,5 +134,37 @@ abstract contract LinearDutchAuction is Seller {
       cfg.numDecreases
     );
     return n * (cfg.startPrice - decreases * cfg.decreaseSize);
+  }
+
+  bool public revenueWithdrawn;
+
+  function withdraw() public onlyOwner {
+    if (
+      this.cost(1, 0) !=
+      (dutchAuctionConfig.startPrice -
+        dutchAuctionConfig.decreaseSize *
+        dutchAuctionConfig.numDecreases)
+    ) {
+      // Not at base price and have not sold out
+      require(
+        this.totalSold() == sellerConfig.totalInventory,
+        "LinearDutchAuction: auction still in progress"
+      );
+    } else {
+      require(
+        !revenueWithdrawn,
+        "LinearDutchAuction: revenue already withdrawn"
+      );
+      revenueWithdrawn = true;
+
+      // If sold out, cost is guaranteed to = latestPurchasePrice
+      uint256 netRevenue = numSettleableInvocations * this.cost(1, 0);
+      latestPurchasePrice =
+        dutchAuctionConfig.startPrice -
+        dutchAuctionConfig.decreaseSize *
+        dutchAuctionConfig.numDecreases;
+      emit RevenueWithdrawn();
+      beneficiary.sendValue(netRevenue);
+    }
   }
 }

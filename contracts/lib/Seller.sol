@@ -11,6 +11,8 @@ import "@openzeppelin/contracts/utils/math/Math.sol";
 import "@openzeppelin/contracts/utils/Strings.sol";
 import "@openzeppelin/contracts/utils/math/SafeCast.sol";
 
+import "hardhat/console.sol";
+
 /**
 @notice An abstract contract providing the _purchase() function to:
  - Enforce per-wallet / per-transaction limits
@@ -59,6 +61,7 @@ abstract contract Seller is OwnerPausable, ReentrancyGuard {
     uint256 netPosted
   );
   event RebateProcessed(address indexed recipient, uint256 amount);
+  event RevenueWithdrawn();
 
   constructor(SellerConfig memory config, address payable _beneficiary) {
     setSellerConfig(config);
@@ -179,14 +182,13 @@ abstract contract Seller is OwnerPausable, ReentrancyGuard {
   event Refund(address indexed buyer, uint256 amount);
 
   /// @notice Emitted on all purchases of non-zero amount.
-  event Revenue(
-    address indexed beneficiary,
-    uint256 numPurchased,
-    uint256 amount
-  );
+  event Revenue(uint256 numPurchased, uint256 amount);
 
   /// @notice Tracks number of items purchased free of charge.
   Monotonic.Increaser private purchasedFreeOfCharge;
+
+  /// @notice Number of times a non-zero amount was paid for a purchase.
+  uint256 public numSettleableInvocations;
 
   /**
     @notice Allows the contract owner to purchase without payment, within the
@@ -232,8 +234,7 @@ abstract contract Seller is OwnerPausable, ReentrancyGuard {
 
   /**
     @notice Enforces all purchase limits (counts and costs) before calling
-    _handlePurchase(), after which the received funds are disbursed to the
-    beneficiary, less any required refunds.
+    _handlePurchase().
     @param to The final recipient of the item(s).
     @param requested The number of items requested for purchase, which MAY be
     reduced when passed to _handlePurchase().
@@ -317,7 +318,12 @@ abstract contract Seller is OwnerPausable, ReentrancyGuard {
     // emit event indicating new receipt state
     emit ReceiptUpdated(_msgSender(), numPurchased, netPosted);
 
-    latestPurchasePrice = _cost;
+    if (_cost > 0) {
+      latestPurchasePrice = _cost;
+      numSettleableInvocations += 1;
+
+      emit Revenue(n, _cost);
+    }
 
     /**
      * ##### INTERACTIONS
@@ -326,15 +332,6 @@ abstract contract Seller is OwnerPausable, ReentrancyGuard {
     // As _handlePurchase() is often an ERC721 safeMint(), it constitutes an
     // interaction.
     _handlePurchase(to, n, false);
-
-    // Ideally we'd be using a PullPayment here, but the user experience is
-    // poor when there's a variable cost or the number of items purchased
-    // has been capped. We've addressed reentrancy with both a nonReentrant
-    // modifier and the checks, effects, interactions pattern.
-
-    if (_cost > 0) {
-      emit Revenue(beneficiary, n, _cost);
-    }
 
     if (msg.value > _cost) {
       address payable reimburse = payable(_msgSender());
@@ -365,14 +362,12 @@ abstract contract Seller is OwnerPausable, ReentrancyGuard {
    * called after auction has sold out above base price or after the auction
    * has been purchased at base price. This minimizes the amount of gas
    * required to send all funds.
-   * @param _to Address to send funds to.
    */
-  function processRebateTo(
-    address payable _to
-  ) public nonReentrant returns (uint256) {
+  function processRebate() public nonReentrant returns (uint256) {
     require(sellerConfig.allowRebates, "Rebates not allowed");
+    address payable _to = payable(_msgSender());
 
-    Receipt storage receipt = receipts[_msgSender()];
+    Receipt storage receipt = receipts[_to];
     uint256 numPurchased = receipt.numPurchased;
     // CHECKS
     // input validation
@@ -391,11 +386,12 @@ abstract contract Seller is OwnerPausable, ReentrancyGuard {
     // calculate the excess funds amount
     uint256 requiredAmountPosted = numPurchased * latestPurchasePrice;
     uint256 excessPosted = receipt.netPosted - requiredAmountPosted;
+
     // update Receipt in storage
     receipt.netPosted = requiredAmountPosted.toUint232();
     // emit event indicating new receipt state and the rebate amount
-    emit ReceiptUpdated(_msgSender(), numPurchased, requiredAmountPosted);
-    emit RebateProcessed(_msgSender(), excessPosted);
+    emit ReceiptUpdated(_to, numPurchased, requiredAmountPosted);
+    emit RebateProcessed(_to, excessPosted);
 
     // INTERACTIONS
     bool success_;
@@ -403,9 +399,5 @@ abstract contract Seller is OwnerPausable, ReentrancyGuard {
     require(success_, "Rebate failed");
 
     return excessPosted;
-  }
-
-  function withdraw() public onlyOwner {
-    beneficiary.sendValue(address(this).balance);
   }
 }
