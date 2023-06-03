@@ -6,7 +6,6 @@ import { BigNumber } from "ethers";
 
 const waitIfNeeded = async (tx: any) => {
   if (tx.wait) {
-    // wait for one confirmation
     await tx.wait(1);
   }
 };
@@ -14,81 +13,6 @@ const waitIfNeeded = async (tx: any) => {
 const delay = (ms: number) => {
   return new Promise((resolve) => setTimeout(resolve, ms));
 };
-
-const addresses = {
-  ethereum: {
-    ScriptyStorage: "0x096451F43800f207FC32B4FF86F286EdaF736eE3",
-    ScriptyBuilder: "0x16b727a2Fc9322C724F4Bc562910c99a5edA5084",
-    ETHFSFileStorage: "0xFc7453dA7bF4d0c739C1c53da57b3636dAb0e11e",
-    WETH: "0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2",
-
-    ethfs_ContentStore: "0xC6806fd75745bB5F5B32ADa19963898155f9DB91",
-    ethfs_FileStore: "0x9746fD0A77829E12F8A9DBe70D7a322412325B91",
-  },
-  goerli: {
-    ScriptyStorage: "0xEA5cD8A8D4eFdA42266E7B9139F8d80915A56daf",
-    ScriptyBuilder: "0x610c05bC5739baf4837fF67d5fc5Ab6D9Ee7558D",
-    ETHFSFileStorage: "0x70a78d91A434C1073D47b2deBe31C184aA8CA9Fa",
-    WETH: "0xBD61e4D2FD100126faFA030eC77E713A1004375D",
-
-    ethfs_ContentStore: "0xED7C16aB4eB4D091F492713e5235Ac93852bc3a0",
-    ethfs_FileStore: "0x5E348d0975A920E9611F8140f84458998A53af94",
-  },
-};
-
-const addressFor = (networkName: string, name: string) => {
-  // @ts-ignore
-  return addresses[networkName][name];
-};
-
-export async function deployOrGetContracts(networkName: string) {
-  if (networkName == "hardhat" || networkName == "localhost") {
-    const contentStoreContract = await (
-      await ethers.getContractFactory("ContentStore")
-    ).deploy();
-    await contentStoreContract.deployed();
-    console.log("ContentStore deployed at", contentStoreContract.address);
-
-    const scriptyStorageContract = await (
-      await ethers.getContractFactory("ScriptyStorage")
-    ).deploy(contentStoreContract.address);
-    await scriptyStorageContract.deployed();
-    console.log("ScriptyStorage deployed at", scriptyStorageContract.address);
-
-    const scriptyBuilderContract = await (
-      await ethers.getContractFactory("ScriptyBuilder")
-    ).deploy();
-    await scriptyBuilderContract.deployed();
-    console.log("ScriptyBuilder deployed at", scriptyBuilderContract.address);
-
-    const Weth = await ethers.getContractFactory("WETH");
-    const wethContract = await Weth.deploy();
-    await wethContract.deployed();
-    console.log("WETH deployed at", wethContract.address);
-
-    return { scriptyStorageContract, scriptyBuilderContract, wethContract };
-  } else {
-    const scriptyStorageAddress = addressFor(networkName, "ScriptyStorage");
-    const scriptyStorageContract = await ethers.getContractAt(
-      "ScriptyStorage",
-      scriptyStorageAddress
-    );
-    console.log("ScriptyStorage is already deployed at", scriptyStorageAddress);
-
-    const scriptyBuilderAddress = addressFor(networkName, "ScriptyBuilder");
-    const scriptyBuilderContract = await ethers.getContractAt(
-      "ScriptyBuilder",
-      scriptyBuilderAddress
-    );
-    console.log("ScriptyBuilder is already deployed at", scriptyBuilderAddress);
-
-    const wethAddress = addressFor(networkName, "WETH");
-    const wethContract = await ethers.getContractAt("WETH", wethAddress);
-    console.log("WethContract is already deployed at", wethAddress);
-
-    return { scriptyStorageContract, scriptyBuilderContract, wethContract };
-  }
-}
 
 async function storeScript(
   storageContract: ScriptyStorage,
@@ -160,7 +84,7 @@ async function main() {
   console.log("Deployer:", dev.address);
 
   const { scriptyStorageContract, scriptyBuilderContract, wethContract } =
-    await deployOrGetContracts(network.name);
+    await utilities.deployOrGetContracts(network.name);
 
   await storeScript(
     scriptyStorageContract,

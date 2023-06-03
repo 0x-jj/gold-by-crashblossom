@@ -1,15 +1,17 @@
 // SPDX-License-Identifier: MIT
 
-import "@openzeppelin/contracts/access/AccessControl.sol";
-import "solady/src/utils/Base64.sol";
-import "@openzeppelin/contracts/utils/Strings.sol";
+pragma solidity ^0.8.17;
+
+import {AccessControl} from "@openzeppelin/contracts/access/AccessControl.sol";
+import {Base64} from "solady/src/utils/Base64.sol";
+import {Strings} from "@openzeppelin/contracts/utils/Strings.sol";
 
 import {IScriptyBuilder, WrappedScriptRequest} from "./lib/scripty/IScriptyBuilder.sol";
 
 interface IGoldContract {
   struct TokenData {
     uint256 transferCount;
-    uint256[30] latestTransferTimestamps;
+    uint256[200] latestTransferTimestamps;
     uint256 mintTimestamp;
     bytes32 seed;
   }
@@ -241,7 +243,7 @@ contract GoldRenderer is AccessControl {
         }
       }
     }
-    return 2; // if nothing else was selected we default to 2 colors
+    return 2;
   }
 
   function generateColourNames(
@@ -363,7 +365,7 @@ contract GoldRenderer is AccessControl {
     string[] memory layerPaths = generateLayerPaths(seed);
 
     Trait[] memory allTraits = new Trait[](
-      selectedColours.length + 8 + claimedPlateCount + vestedPlateCount
+      selectedColours.length + 8 + claimedPlateCount + vestedPlateCount + 1
     );
 
     uint256 currentIndex = 0;
@@ -397,13 +399,18 @@ contract GoldRenderer is AccessControl {
       currentIndex++;
     }
 
-    for (uint256 i = 0; i < claimedPlateCount; i++) {
+    for (uint256 i = 0; i < vestedPlateCount; i++) {
       allTraits[currentIndex] = Trait({
         typeName: string(abi.encodePacked("Vested Layer ", toString(i + 1))),
         valueName: layerPaths[i + 16]
       });
       currentIndex++;
     }
+
+    allTraits[currentIndex] = Trait({
+      typeName: "Colour Count",
+      valueName: toString(numberOfColours)
+    });
 
     return allTraits;
   }

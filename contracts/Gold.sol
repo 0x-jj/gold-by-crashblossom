@@ -2,14 +2,14 @@
 
 pragma solidity ^0.8.17;
 
-import "@openzeppelin/contracts/finance/PaymentSplitter.sol";
-import "@openzeppelin/contracts/access/Ownable.sol";
-import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import "@openzeppelin/contracts/utils/math/SafeCast.sol";
-import "@openzeppelin/contracts/access/AccessControl.sol";
+import {PaymentSplitter} from "@openzeppelin/contracts/finance/PaymentSplitter.sol";
+import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
+import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import {SafeCast} from "@openzeppelin/contracts/utils/math/SafeCast.sol";
+import {AccessControl} from "@openzeppelin/contracts/access/AccessControl.sol";
 
-import "./lib/LinearDutchAuction.sol";
-import "./lib/ERC721.sol";
+import {LinearDutchAuction} from "./lib/LinearDutchAuction.sol";
+import {ERC721} from "./lib/ERC721.sol";
 
 error NotAuthorized();
 error MaxSupplyReached();
@@ -25,7 +25,7 @@ contract Gold is ERC721, PaymentSplitter, AccessControl, Ownable {
   using SafeCast for uint256;
 
   uint256 public totalSupply = 0;
-  uint256 public constant MAX_SUPPLY = 700;
+  uint256 public constant MAX_SUPPLY = 400;
 
   address public sale;
 
@@ -180,7 +180,9 @@ contract Gold is ERC721, PaymentSplitter, AccessControl, Ownable {
     return count;
   }
 
-  function numberOfVestedPlates(uint256 tokenId) external returns (uint256) {
+  function numberOfVestedPlates(
+    uint256 tokenId
+  ) external view returns (uint256) {
     uint256 count = 0;
     uint256 mintTimestamp = tokenData[tokenId].mintTimestamp;
     if (block.timestamp > (mintTimestamp + (6 * 30 days))) count++;
@@ -314,7 +316,7 @@ contract Gold is ERC721, PaymentSplitter, AccessControl, Ownable {
 
   function latestTransferTimestamp(
     TokenData memory _tokenData
-  ) internal returns (uint256) {
+  ) internal pure returns (uint256) {
     return
       _tokenData.latestTransferTimestamps[
         (_tokenData.transferCount - 1) % HISTORY_LENGTH
@@ -359,7 +361,7 @@ contract Gold is ERC721, PaymentSplitter, AccessControl, Ownable {
     return string(result);
   }
 
-  function getSelectors() public view returns (string memory, string memory) {
+  function getSelectors() public pure returns (string memory, string memory) {
     return (
       fromCode(this.getContractMetrics.selector),
       fromCode(this.getTokenMetrics.selector)

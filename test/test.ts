@@ -1,14 +1,9 @@
 import { expect } from "chai";
 import { ethers, network } from "hardhat";
 import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/signers";
-import {
-  Gold,
-  GoldFixedPriceSale,
-  GoldDutchAuction,
-  WETH,
-} from "../typechain-types";
+import { Gold, GoldDutchAuction, WETH } from "../typechain-types";
 import { time } from "@nomicfoundation/hardhat-network-helpers";
-import { deployOrGetContracts } from "../scripts/deploy";
+import { deployOrGetContracts } from "../scripts/utils";
 
 const toWei = ethers.utils.parseEther;
 
@@ -35,7 +30,8 @@ async function deployContracts() {
     [dev.address, artist.address, dao.address],
     scriptyBuilderContract.address,
     scriptyStorageContract.address,
-    210000
+    210000,
+    "https://arweave.net/gold/"
   );
   await rendererContract.deployed();
   console.log("Renderer Contract is deployed", rendererContract.address);
