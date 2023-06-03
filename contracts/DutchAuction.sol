@@ -2,7 +2,7 @@
 
 pragma solidity ^0.8.4;
 
-import "../lib/LinearDutchAuction.sol";
+import "./lib/LinearDutchAuction.sol";
 import "@divergencetech/ethier/contracts/utils/DynamicBuffer.sol";
 import "@openzeppelin/contracts/finance/PaymentSplitter.sol";
 import "@openzeppelin/contracts/utils/Strings.sol";
@@ -35,7 +35,7 @@ contract GoldDutchAuction is LinearDutchAuction {
       }),
       0.4 ether,
       Seller.SellerConfig({
-        totalInventory: 500,
+        totalInventory: 400,
         maxPerAddress: 0, // unlimited
         maxPerTx: 0, // unlimited
         freeQuota: 0,
