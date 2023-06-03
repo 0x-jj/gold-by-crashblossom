@@ -51,8 +51,7 @@ async function storeScript(
       await storageContract.addChunkToScript(
         name,
         utilities.stringToBytes(scriptChunks[i]),
-        { gasLimit: 500000000 }
-      )
+       )
     );
     console.log(
       `${name} chunk #`,
@@ -88,13 +87,13 @@ async function main() {
 
   await storeScript(
     scriptyStorageContract,
-    "gold_by_crashblossom_base",
+    "gold_by_crashblossom_base_v2",
     "scripts/goldBase.js"
   );
 
   await storeScript(
     scriptyStorageContract,
-    "gold_by_crashblossom_paths",
+    "gold_by_crashblossom_paths_v2",
     "scripts/paths.js",
     true
   );
@@ -107,13 +106,14 @@ async function main() {
 
   await storeScript(
     scriptyStorageContract,
-    "gold_by_crashblossom_main",
+    "gold_by_crashblossom_main_v2",
     "scripts/main.js"
   );
 
+  
   const scriptRequests = [
     {
-      name: "gold_by_crashblossom_base",
+      name: "gold_by_crashblossom_base_v2",
       contractAddress: scriptyStorageContract.address,
       contractData: 0,
       wrapType: 0,
@@ -122,7 +122,7 @@ async function main() {
       scriptContent: utilities.emptyBytes(),
     },
     {
-      name: "gold_by_crashblossom_paths",
+      name: "gold_by_crashblossom_paths_v2",
       contractAddress: scriptyStorageContract.address,
       contractData: 0,
       wrapType: 2,
@@ -140,7 +140,7 @@ async function main() {
       scriptContent: utilities.emptyBytes(),
     },
     {
-      name: "gold_by_crashblossom_main",
+      name: "gold_by_crashblossom_main_v2",
       contractAddress: scriptyStorageContract.address,
       contractData: 0,
       wrapType: 0,

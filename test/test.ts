@@ -274,8 +274,8 @@ describe("GOLD data", async function () {
     expect(metrics[0].toNumber()).to.equal(1);
     expect(metrics[1][0]).to.not.equal(0);
 
-    // Transfer info - 2 transfers plus 1 mint
-    expect(metrics[2].toNumber()).to.equal(3);
+    // Transfer info - 2 transfers 
+    expect(metrics[2].toNumber()).to.equal(2);
     expect(metrics[3][0]).to.not.equal(0);
 
     // Holder count - 1 holder

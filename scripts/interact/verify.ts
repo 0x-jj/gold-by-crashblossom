@@ -2,8 +2,8 @@ import { ethers, run } from "hardhat";
 import * as utilities from "../utils";
 import path from "path";
 
-const contractAddress = "0x087027C87C116C68EF0158d2487A335705FF4a72";
-const rendererAddress = "0x039B0de1A7341F85627F42adEECAb41936Cf9429";
+const contractAddress = "0x549F085763C9f18d4CD327882D845c016F7D4357";
+const rendererAddress = "0x0c4Ac984842cf24a71fb8DF162E28C38f74D91eC";
 const wethAddress = "0xBD61e4D2FD100126faFA030eC77E713A1004375D";
 const DEV_SPLIT = 140; // 14%
 const ARTIST_SPLIT = 650; // 65 %

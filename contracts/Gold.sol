@@ -220,11 +220,15 @@ contract Gold is ERC721, PaymentSplitter, AccessControl, Ownable {
   }
 
   function _afterTokenTransfer(
-    address,
+    address from,
     address,
     uint256 tokenId,
     uint256
   ) internal override {
+    if (from == address(0)) {
+      return;
+    }
+
     // Record latest transfer on contract
     latestTransferTimestamps[transferCount % HISTORY_LENGTH] = block.timestamp;
 
