@@ -111,7 +111,7 @@ contract Gold is ERC721, PaymentSplitter, AccessControl, Ownable {
     return goldRenderer.tokenURI(tokenId);
   }
 
-  function claimHodlLayers(uint256 tokenId, uint8 milestone) external {
+  function claimPlateLayers(uint256 tokenId, uint8 milestone) external {
     if (ownerOf(tokenId) != _msgSender()) revert NotAuthorized();
 
     uint256 lastTransferTimestamp = latestTransferTimestamp(tokenData[tokenId]);
@@ -180,7 +180,7 @@ contract Gold is ERC721, PaymentSplitter, AccessControl, Ownable {
     return count;
   }
 
-  function numberOfVestedPlates(
+  function numberOfVestedClusters(
     uint256 tokenId
   ) external view returns (uint256) {
     uint256 count = 0;

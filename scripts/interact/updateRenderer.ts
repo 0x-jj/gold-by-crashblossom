@@ -11,7 +11,7 @@ async function main() {
     "0x610c05bC5739baf4837fF67d5fc5Ab6D9Ee7558D",
     "0xEA5cD8A8D4eFdA42266E7B9139F8d80915A56daf",
     250000,
-    "https://arweave.net/gold/"
+    "https://arweave.net/47qkjHaUcTE4-t3wDvXXXNjiZPhRLleDPF_NJcwj9eg/"
   );
   const newAddress = rendererContract.address;
 

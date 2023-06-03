@@ -27,7 +27,7 @@ interface IGoldContract {
     uint256 tokenId
   ) external view returns (uint256);
 
-  function numberOfVestedPlates(
+  function numberOfVestedClusters(
     uint256 tokenId
   ) external view returns (uint256);
 
@@ -109,7 +109,7 @@ contract GoldRenderer is AccessControl {
         '", "image": "',
         baseImageURI,
         tid,
-        '"',
+        '.jpg"',
         ', "animation_url":"',
         animationUrl,
         '", "attributes": [',
@@ -350,7 +350,7 @@ contract GoldRenderer is AccessControl {
     );
 
     uint256 claimedPlateCount = goldContract.numberOfClaimedPlates(tokenId);
-    uint256 vestedPlateCount = goldContract.numberOfVestedPlates(tokenId);
+    uint256 vestedPlateCount = goldContract.numberOfVestedClusters(tokenId);
 
     Seed memory seed = Seed({
       current: tokenSeed,
@@ -370,13 +370,12 @@ contract GoldRenderer is AccessControl {
 
     uint256 currentIndex = 0;
 
-    for (uint256 i = 0; i < selectedColours.length; i++) {
-      allTraits[currentIndex] = Trait({
-        typeName: string(abi.encodePacked("Colour ", toString(i + 1))),
-        valueName: selectedColours[i]
-      });
-      currentIndex++;
-    }
+    allTraits[currentIndex] = Trait({
+      typeName: "Colour Count",
+      valueName: toString(numberOfColours)
+    });
+
+    currentIndex++;
 
     for (uint256 i = 0; i < 8; i++) {
       allTraits[currentIndex] = Trait({
@@ -407,10 +406,13 @@ contract GoldRenderer is AccessControl {
       currentIndex++;
     }
 
-    allTraits[currentIndex] = Trait({
-      typeName: "Colour Count",
-      valueName: toString(numberOfColours)
-    });
+    for (uint256 i = 0; i < selectedColours.length; i++) {
+      allTraits[currentIndex] = Trait({
+        typeName: string(abi.encodePacked("Colour ", toString(i + 1))),
+        valueName: selectedColours[i]
+      });
+      currentIndex++;
+    }
 
     return allTraits;
   }
