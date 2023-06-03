@@ -111,7 +111,7 @@ contract Gold is ERC721, PaymentSplitter, AccessControl, Ownable {
     return goldRenderer.tokenURI(tokenId);
   }
 
-  function claimPlateLayers(uint256 tokenId, uint8 milestone) external {
+  function claimBonusPlates(uint256 tokenId, uint8 milestone) external {
     if (ownerOf(tokenId) != _msgSender()) revert NotAuthorized();
 
     uint256 lastTransferTimestamp = latestTransferTimestamp(tokenData[tokenId]);
@@ -166,9 +166,7 @@ contract Gold is ERC721, PaymentSplitter, AccessControl, Ownable {
     }
   }
 
-  function numberOfClaimedPlates(
-    uint256 tokenId
-  ) public view returns (uint256) {
+  function numberOfBonusPlates(uint256 tokenId) public view returns (uint256) {
     uint256 count = 0;
     TokenData memory td = tokenData[tokenId];
     if (td.held6MonthsClaimedBy != address(0)) count++;
@@ -180,7 +178,7 @@ contract Gold is ERC721, PaymentSplitter, AccessControl, Ownable {
     return count;
   }
 
-  function numberOfVestedClusters(
+  function numberOfBonusClusters(
     uint256 tokenId
   ) external view returns (uint256) {
     uint256 count = 0;
@@ -194,7 +192,7 @@ contract Gold is ERC721, PaymentSplitter, AccessControl, Ownable {
     return count;
   }
 
-  function mint(address to) external {
+  function mint(address to) public {
     if (totalSupply >= MAX_SUPPLY) revert MaxSupplyReached();
     // TODO: UNCOMMENT - if (_msgSender() != sale) revert NotAuthorized();
 
@@ -211,6 +209,14 @@ contract Gold is ERC721, PaymentSplitter, AccessControl, Ownable {
       )
     );
     _safeMint(to, tokenId);
+  }
+
+  // TODO: Remove
+  function mintMany(address to, uint256 count) external {
+    require(count <= 10, "Can only mint 10 at a time");
+    for (uint256 i = 0; i < count; i++) {
+      this.mint(to);
+    }
   }
 
   function _afterTokenTransfer(
@@ -295,7 +301,7 @@ contract Gold is ERC721, PaymentSplitter, AccessControl, Ownable {
       tokenData[tokenId].mintTimestamp,
       tokenData[tokenId].seed,
       balanceOf(ownerOf(tokenId)),
-      numberOfClaimedPlates(tokenId)
+      numberOfBonusPlates(tokenId)
     );
   }
 

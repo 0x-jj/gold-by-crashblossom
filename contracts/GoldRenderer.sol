@@ -23,11 +23,9 @@ interface IGoldContract {
 
   function getSelectors() external view returns (string memory, string memory);
 
-  function numberOfClaimedPlates(
-    uint256 tokenId
-  ) external view returns (uint256);
+  function numberOfBonusPlates(uint256 tokenId) external view returns (uint256);
 
-  function numberOfVestedClusters(
+  function numberOfBonusClusters(
     uint256 tokenId
   ) external view returns (uint256);
 
@@ -349,8 +347,8 @@ contract GoldRenderer is AccessControl {
       tokenId
     );
 
-    uint256 claimedPlateCount = goldContract.numberOfClaimedPlates(tokenId);
-    uint256 vestedPlateCount = goldContract.numberOfVestedClusters(tokenId);
+    uint256 bonusPlateCount = goldContract.numberOfBonusPlates(tokenId);
+    uint256 bonusClusterCount = goldContract.numberOfBonusClusters(tokenId);
 
     Seed memory seed = Seed({
       current: tokenSeed,
@@ -365,13 +363,13 @@ contract GoldRenderer is AccessControl {
     string[] memory layerPaths = generateLayerPaths(seed);
 
     Trait[] memory allTraits = new Trait[](
-      selectedColours.length + 8 + claimedPlateCount + vestedPlateCount + 1
+      selectedColours.length + 8 + bonusPlateCount + bonusClusterCount + 1
     );
 
     uint256 currentIndex = 0;
 
     allTraits[currentIndex] = Trait({
-      typeName: "Colour Count",
+      typeName: "Palette Count",
       valueName: toString(numberOfColours)
     });
 
@@ -381,7 +379,7 @@ contract GoldRenderer is AccessControl {
       allTraits[currentIndex] = Trait({
         typeName: string(
           abi.encodePacked(
-            i % 2 == 0 ? "Plate Layer " : "Cluster Layer ",
+            i % 2 == 0 ? "Gold Plate " : "Gold Cluster ",
             toString((i / 2) + 1)
           )
         ),
@@ -390,17 +388,17 @@ contract GoldRenderer is AccessControl {
       currentIndex++;
     }
 
-    for (uint256 i = 0; i < claimedPlateCount; i++) {
+    for (uint256 i = 0; i < bonusPlateCount; i++) {
       allTraits[currentIndex] = Trait({
-        typeName: string(abi.encodePacked("Claimed Layer ", toString(i + 1))),
+        typeName: string(abi.encodePacked("Bonus Plate ", toString(i + 1))),
         valueName: layerPaths[i + 8]
       });
       currentIndex++;
     }
 
-    for (uint256 i = 0; i < vestedPlateCount; i++) {
+    for (uint256 i = 0; i < bonusClusterCount; i++) {
       allTraits[currentIndex] = Trait({
-        typeName: string(abi.encodePacked("Vested Layer ", toString(i + 1))),
+        typeName: string(abi.encodePacked("Bonus Cluster ", toString(i + 1))),
         valueName: layerPaths[i + 16]
       });
       currentIndex++;
@@ -408,7 +406,7 @@ contract GoldRenderer is AccessControl {
 
     for (uint256 i = 0; i < selectedColours.length; i++) {
       allTraits[currentIndex] = Trait({
-        typeName: string(abi.encodePacked("Colour ", toString(i + 1))),
+        typeName: string(abi.encodePacked("Palette ", toString(i + 1))),
         valueName: selectedColours[i]
       });
       currentIndex++;
