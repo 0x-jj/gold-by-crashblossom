@@ -129,7 +129,7 @@ contract GoldRenderer is AccessControl {
       string memory tokenMetricsSelector
     ) = goldContract.getSelectors();
 
-    requests[0].name = "gold_by_crashblossom_base_v2";
+    requests[0].name = "gold_by_crashblossom_base_v3";
     requests[0].wrapType = 0; // <script>[script]</script>
     requests[0].contractAddress = scriptyStorageAddress;
 
@@ -147,7 +147,7 @@ contract GoldRenderer is AccessControl {
       "let R = ",
       toString(goldContract.totalSupply()),
       ";",
-      "let N = ",
+      "let q = ",
       toString(mintTimestamp),
       ";"
       'let P = "',
@@ -161,7 +161,7 @@ contract GoldRenderer is AccessControl {
       '";'
     );
 
-    requests[2].name = "gold_by_crashblossom_paths_v2";
+    requests[2].name = "gold_by_crashblossom_paths_v3";
     requests[2].wrapType = 2;
     requests[2].contractAddress = scriptyStorageAddress;
 
@@ -169,7 +169,7 @@ contract GoldRenderer is AccessControl {
     requests[3].wrapType = 0; // <script>[script]</script>
     requests[3].contractAddress = scriptyStorageAddress;
 
-    requests[4].name = "gold_by_crashblossom_main_v2";
+    requests[4].name = "gold_by_crashblossom_main_v3";
     requests[4].wrapType = 0; // <script>[script]</script>
     requests[4].contractAddress = scriptyStorageAddress;
 

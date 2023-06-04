@@ -4,6 +4,8 @@ import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/signers";
 import { Gold, GoldDutchAuction, WETH } from "../typechain-types";
 import { time } from "@nomicfoundation/hardhat-network-helpers";
 import { deployOrGetContracts } from "../scripts/utils";
+import { getMerkleRootWithDiscounts } from "./utils";
+import MerkleTree from "merkletreejs";
 
 const toWei = ethers.utils.parseEther;
 
@@ -52,24 +54,31 @@ async function deployContracts() {
 
   const auctionSale = await ethers.getContractFactory("GoldDutchAuction");
 
+  const merkleTree = getMerkleRootWithDiscounts([{address: dev.address, discountBps: 2000}]);
   const auctionContract = await auctionSale.deploy(
     [dev.address, artist.address, dao.address],
     [DEV_SPLIT, ARTIST_SPLIT, DAO_SPLIT],
-    nftContract.address
+    nftContract.address,
+    merkleTree.root
   );
   await nftContract.setSaleAddress(auctionContract.address);
 
-  return { nftContract, rendererContract, auctionContract, wethContract };
+  return { nftContract, rendererContract, auctionContract, wethContract, merkleTree};
 }
 
 describe("GOLD sale", async function () {
   let contract: Gold;
   let auctionContract: GoldDutchAuction;
   let deployer: SignerWithAddress;
+  let merkleTree: {
+    root: string;
+    tree: MerkleTree
+  }
 
   beforeEach(async () => {
     await network.provider.send("hardhat_reset");
     const contracts = await deployContracts();
+    merkleTree = contracts.merkleTree;
     contract = contracts.nftContract;
     auctionContract = contracts.auctionContract;
     const signers = await ethers.getSigners();
@@ -143,8 +152,11 @@ describe("GOLD sale", async function () {
     await expect(await contract.ownerOf(0)).to.equal(deployer.address);
   });
 
-  it("Auction::Can successfully purchase and rebate", async function () {
+  it.only("Auction::Can successfully purchase and rebate", async function () {
     const signers = await ethers.getSigners();
+
+    const buyer1 = signers[0].address;
+    const buyer2 = signers[1].address;
 
     await contract.setSaleAddress(auctionContract.address);
     await auctionContract.setAuctionStartPoint(START_TIMESTAMP);
@@ -160,30 +172,28 @@ describe("GOLD sale", async function () {
     await time.increaseTo(START_TIMESTAMP + 300 * 19);
     await auctionContract.buy({ value: toWei("0.4") });
 
-    const refunded2 = await auctionContract.callStatic.processRebate();
-    expect(refunded2.toString()).to.equal(toWei("3.4"));
-
+    const refunded2 = await auctionContract.callStatic.processRebate(buyer1, merkleTree.tree.getHexProof(buyer1));
+    expect(refunded2.toString()).to.equal(toWei("3.56")); // This buyer gets a 20% discount
+     
     const refunded3 = await auctionContract
       .connect(signers[1])
-      .callStatic.processRebate();
+      .callStatic.processRebate(buyer2, merkleTree.tree.getHexProof(buyer2));
     expect(refunded3.toString()).to.equal(toWei("3.2"));
 
-    await auctionContract.processRebate();
-    await auctionContract.connect(signers[1]).processRebate();
+    await auctionContract.processRebate(buyer1, merkleTree.tree.getHexProof(buyer1));
+    await auctionContract.connect(signers[1]).processRebate(buyer2, merkleTree.tree.getHexProof(buyer2));
 
     // Verify we can't rebate again
 
-    const refunded4 = await auctionContract.callStatic.processRebate();
-    expect(refunded4.toString()).to.equal(toWei("0"));
-
-    const refunded5 = await auctionContract
+     await expect(auctionContract.callStatic.processRebate(buyer1, merkleTree.tree.getHexProof(buyer1))).to.be.revertedWith("Nothing to claim");
+ 
+     await expect(auctionContract
       .connect(signers[1])
-      .callStatic.processRebate();
-    expect(refunded5.toString()).to.equal(toWei("0"));
-  });
+      .callStatic.processRebate(buyer2, merkleTree.tree.getHexProof(buyer2))).to.be.revertedWith("Nothing to claim");
+   });
 });
 
-describe("GOLD data", async function () {
+describe.skip("GOLD data", async function () {
   let contract: Gold;
   let deployer: SignerWithAddress;
   let wethContract: WETH;

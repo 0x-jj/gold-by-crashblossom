@@ -27,6 +27,23 @@ export function getMerkleRoot(addresses: string[]) {
   return { tree, root: tree.getHexRoot() };
 }
 
+export function getMerkleRootWithDiscounts(
+  addresses: {address: string, discountBps: number}[],
+) {
+  const hashes = addresses.map((data) =>
+    ethers.utils.solidityKeccak256(
+      ["address", "uint16"],
+      [ethers.utils.getAddress(data.address), String(data.discountBps)]
+    )
+  );
+
+  const tree = new MerkleTree(hashes, keccak256, {
+    sortPairs: true,
+  });
+
+  return { tree, root: tree.getHexRoot() };
+}
+
 export function getStringOfNKilobytes(n: number) {
   return "0".repeat(n * 1024);
 }

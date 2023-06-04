@@ -312,12 +312,7 @@ abstract contract Seller is OwnerPausable, ReentrancyGuard {
       latestPurchasePrice = _cost;
       numSettleableInvocations += 1;
 
-      // Calculate discount
-      // Update receipt using the discounted amount
-      // Update cost value to new discounted cost. Still set latestpurchaseprice to non discounted
-      // Track total discounts provided so we can include it in net revenue calc
-
-      Receipt storage receipt = receipts[_msgSender()];
+      Receipt storage receipt = receipts[to];
       uint256 netPosted = receipt.netPosted + _cost;
       uint256 numPurchased = receipt.numPurchased + 1;
 
@@ -325,7 +320,7 @@ abstract contract Seller is OwnerPausable, ReentrancyGuard {
       receipt.numPurchased = uint24(numPurchased);
 
       // emit event indicating new receipt state
-      emit ReceiptUpdated(_msgSender(), numPurchased, netPosted);
+      emit ReceiptUpdated(to, numPurchased, netPosted);
 
       emit Revenue(n, _cost);
     }
@@ -359,6 +354,14 @@ abstract contract Seller is OwnerPausable, ReentrancyGuard {
     }
   }
 
+  /**
+    @notice Toggles allowing rebates
+  */
+
+  function toggleAllowRebates() public onlyOwner {
+    sellerConfig.allowRebates = !sellerConfig.allowRebates;
+  }
+
   /** 
     @dev Called by processRebate() to calculate the additional rebate
     given to discounted purchasers. Discounts lower the effective resting price for
@@ -368,7 +371,8 @@ abstract contract Seller is OwnerPausable, ReentrancyGuard {
   */
   function _applyDiscount(
     address buyer,
-    uint256 cost
+    uint256 cost,
+    bytes32[] calldata _merkleProof
   ) internal virtual returns (uint256);
 
   /**
@@ -380,32 +384,41 @@ abstract contract Seller is OwnerPausable, ReentrancyGuard {
    * has been purchased at base price. This minimizes the amount of gas
    * required to send all funds.
    */
-  function processRebate(address buyer) public nonReentrant returns (uint256) {
+  function processRebate(
+    address buyer,
+    bytes32[] calldata _merkleProof
+  ) public nonReentrant returns (uint256) {
     require(sellerConfig.allowRebates, "Rebates not allowed");
     address payable recipient = payable(_msgSender());
-
     Receipt storage receipt = receipts[buyer];
     uint256 numPurchased = receipt.numPurchased;
-    // CHECKS
+ 
+    /**
+     * ##### CHECKS
+     */
     // input validation
     require(buyer != address(0), "No claiming to the zero address");
     // require that a user has purchased at least one token on this project
     require(numPurchased > 0, "No purchases made by this address");
-    // get the latestPurchasePrice, which returns the sellout price if the
-    // auction sold out before reaching base price, or returns the base
-    // price if auction has reached base price and artist has withdrawn
-    // revenues.
+ 
     // @dev if user is eligible for a reclaiming, they have purchased a
     // token, therefore we are guaranteed to have a populated
     // latestPurchasePrice
 
-    // EFFECTS
     // calculate the excess funds amount
     uint256 requiredAmountPosted = _applyDiscount(
       buyer,
-      numPurchased * latestPurchasePrice
+      numPurchased * latestPurchasePrice,
+      _merkleProof
     );
     uint256 excessPosted = receipt.netPosted - requiredAmountPosted;
+
+    // verify that the user has not already claimed their rebate
+    require(excessPosted != 0, "Nothing to claim");
+
+    /**
+     * ##### EFFECTS
+     */
 
     // update Receipt in storage
     receipt.netPosted = requiredAmountPosted.toUint232();
@@ -413,13 +426,13 @@ abstract contract Seller is OwnerPausable, ReentrancyGuard {
     emit ReceiptUpdated(buyer, numPurchased, requiredAmountPosted);
     emit RebateProcessed(buyer, excessPosted);
 
-    // INTERACTIONS
+    /**
+     * ##### INTERACTIONS
+     */
     bool success_;
     (success_, ) = recipient.call{value: excessPosted}("");
     require(success_, "Rebate failed");
 
     return excessPosted;
   }
-
-  // Todo: write calculate discount func. Add switch for turning off rebates. Add delegate cash. Potentially remove msgSender mint limits
 }
