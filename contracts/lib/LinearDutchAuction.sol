@@ -159,10 +159,7 @@ abstract contract LinearDutchAuction is Seller {
 
       // If sold out, cost is guaranteed to = latestPurchasePrice
       uint256 netRevenue = numSettleableInvocations * this.cost(1, 0);
-      latestPurchasePrice =
-        dutchAuctionConfig.startPrice -
-        dutchAuctionConfig.decreaseSize *
-        dutchAuctionConfig.numDecreases;
+
       emit RevenueWithdrawn();
       beneficiary.sendValue(netRevenue);
     }

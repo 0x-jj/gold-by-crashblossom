@@ -6,6 +6,7 @@ import "./lib/LinearDutchAuction.sol";
 import "@divergencetech/ethier/contracts/utils/DynamicBuffer.sol";
 import "@openzeppelin/contracts/finance/PaymentSplitter.sol";
 import "@openzeppelin/contracts/utils/Strings.sol";
+import "@openzeppelin/contracts/utils/cryptography/MerkleProof.sol";
 
 interface IGold {
   function totalSupply() external view returns (uint256);
@@ -19,10 +20,13 @@ interface IGold {
 contract GoldDutchAuction is LinearDutchAuction {
   IGold public gold;
 
+  bytes32 public discountMerkleRoot;
+
   constructor(
     address[] memory payees,
     uint256[] memory shares,
-    address _gold
+    address _gold,
+    bytes32 _discountMerkleRoot
   )
     LinearDutchAuction(
       LinearDutchAuction.DutchAuctionConfig({
@@ -49,6 +53,7 @@ contract GoldDutchAuction is LinearDutchAuction {
   {
     gold = IGold(_gold);
     setBeneficiary(payable(new PaymentSplitter(payees, shares)));
+    discountMerkleRoot = _discountMerkleRoot;
   }
 
   function buy() external payable {
@@ -59,5 +64,35 @@ contract GoldDutchAuction is LinearDutchAuction {
     for (uint256 i = 0; i < num; i++) {
       gold.mint(to);
     }
+  }
+
+  function setDiscountMerkleRoot(bytes32 _discountMerkleRoot)
+    external
+    onlyOwner
+  {
+    discountMerkleRoot = _discountMerkleRoot;
+  }
+
+  function _applyDiscount(
+    address buyer,
+    uint256 cost,
+    bytes32[] calldata _merkleProof
+  ) internal view override returns (uint256) {
+    require(discountMerkleRoot != bytes32(0), "Merkle root not set");
+
+    uint256 discountedCost = cost;
+
+    uint16[3] memory discountBps = [2500, 2250, 2000];
+
+    for (uint256 i = 0; i < discountBps.length; i++) {
+      bytes32 leaf = keccak256(abi.encodePacked(buyer, discountBps[i]));
+      if (MerkleProof.verify(_merkleProof, discountMerkleRoot, leaf)) {
+        uint256 discount = (cost * discountBps[i]) / 10000;
+        discountedCost = cost - discount;
+        break;
+      }
+    }
+     
+   return discountedCost;
   }
 }

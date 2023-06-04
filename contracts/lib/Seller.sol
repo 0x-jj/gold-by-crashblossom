@@ -308,19 +308,19 @@ abstract contract Seller is OwnerPausable, ReentrancyGuard {
     _totalSold.add(n);
     assert(_totalSold.current() <= config.totalInventory);
 
-    Receipt storage receipt = receipts[_msgSender()];
-    uint256 netPosted = receipt.netPosted + _cost;
-    uint256 numPurchased = receipt.numPurchased + 1;
-
-    receipt.netPosted = uint232(netPosted);
-    receipt.numPurchased = uint24(numPurchased);
-
-    // emit event indicating new receipt state
-    emit ReceiptUpdated(_msgSender(), numPurchased, netPosted);
-
     if (_cost > 0) {
       latestPurchasePrice = _cost;
       numSettleableInvocations += 1;
+
+      Receipt storage receipt = receipts[to];
+      uint256 netPosted = receipt.netPosted + _cost;
+      uint256 numPurchased = receipt.numPurchased + 1;
+
+      receipt.netPosted = uint232(netPosted);
+      receipt.numPurchased = uint24(numPurchased);
+
+      // emit event indicating new receipt state
+      emit ReceiptUpdated(to, numPurchased, netPosted);
 
       emit Revenue(n, _cost);
     }
@@ -355,6 +355,27 @@ abstract contract Seller is OwnerPausable, ReentrancyGuard {
   }
 
   /**
+    @notice Toggles allowing rebates
+  */
+
+  function toggleAllowRebates() public onlyOwner {
+    sellerConfig.allowRebates = !sellerConfig.allowRebates;
+  }
+
+  /** 
+    @dev Called by processRebate() to calculate the additional rebate
+    given to discounted purchasers. Discounts lower the effective resting price for
+    buyers that are eligible. A buyer who pays 2 ETH for 1 mint, where the auction ends 
+    at 1 ETH, will usually receive a rebate of 1 ETH. If they are eligible for a 20% discount,
+    they should receive a rebate of 1.2 ETH instead (effective resting price becomes 0.8 ETH).
+  */
+  function _applyDiscount(
+    address buyer,
+    uint256 cost,
+    bytes32[] calldata _merkleProof
+  ) internal virtual returns (uint256);
+
+  /**
    * @notice Refunds the sender's payment above current settled price.
    * The current settled price is the the price paid
    * for the most recently purchased token.
@@ -363,39 +384,53 @@ abstract contract Seller is OwnerPausable, ReentrancyGuard {
    * has been purchased at base price. This minimizes the amount of gas
    * required to send all funds.
    */
-  function processRebate() public nonReentrant returns (uint256) {
+  function processRebate(
+    address buyer,
+    bytes32[] calldata _merkleProof
+  ) public nonReentrant returns (uint256) {
     require(sellerConfig.allowRebates, "Rebates not allowed");
-    address payable _to = payable(_msgSender());
-
-    Receipt storage receipt = receipts[_to];
+    address payable recipient = payable(_msgSender());
+    Receipt storage receipt = receipts[buyer];
     uint256 numPurchased = receipt.numPurchased;
-    // CHECKS
+ 
+    /**
+     * ##### CHECKS
+     */
     // input validation
-    require(_to != address(0), "No claiming to the zero address");
+    require(buyer != address(0), "No claiming to the zero address");
     // require that a user has purchased at least one token on this project
     require(numPurchased > 0, "No purchases made by this address");
-    // get the latestPurchasePrice, which returns the sellout price if the
-    // auction sold out before reaching base price, or returns the base
-    // price if auction has reached base price and artist has withdrawn
-    // revenues.
+ 
     // @dev if user is eligible for a reclaiming, they have purchased a
     // token, therefore we are guaranteed to have a populated
     // latestPurchasePrice
 
-    // EFFECTS
     // calculate the excess funds amount
-    uint256 requiredAmountPosted = numPurchased * latestPurchasePrice;
+    uint256 requiredAmountPosted = _applyDiscount(
+      buyer,
+      numPurchased * latestPurchasePrice,
+      _merkleProof
+    );
     uint256 excessPosted = receipt.netPosted - requiredAmountPosted;
+
+    // verify that the user has not already claimed their rebate
+    require(excessPosted != 0, "Nothing to claim");
+
+    /**
+     * ##### EFFECTS
+     */
 
     // update Receipt in storage
     receipt.netPosted = requiredAmountPosted.toUint232();
     // emit event indicating new receipt state and the rebate amount
-    emit ReceiptUpdated(_to, numPurchased, requiredAmountPosted);
-    emit RebateProcessed(_to, excessPosted);
+    emit ReceiptUpdated(buyer, numPurchased, requiredAmountPosted);
+    emit RebateProcessed(buyer, excessPosted);
 
-    // INTERACTIONS
+    /**
+     * ##### INTERACTIONS
+     */
     bool success_;
-    (success_, ) = _to.call{value: excessPosted}("");
+    (success_, ) = recipient.call{value: excessPosted}("");
     require(success_, "Rebate failed");
 
     return excessPosted;
