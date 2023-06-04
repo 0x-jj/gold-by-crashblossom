@@ -420,4 +420,6 @@ abstract contract Seller is OwnerPausable, ReentrancyGuard {
 
     return excessPosted;
   }
+
+  // Todo: write calculate discount func. Add switch for turning off rebates. Add delegate cash. Potentially remove msgSender mint limits
 }
