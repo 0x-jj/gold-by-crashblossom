@@ -2,92 +2,94 @@
 
 // All path names are stored in a single array. Then we have arrays containing indexes of paths that can be used for specific layers. This eliminates the need to repeat the string name of the path.
 let paths = [
-  "LS - range", "LS - splash", "LS - plane", "LS - streetlight", "LS - glass", "LS - left", "LS - right", "LS - map", "LS - fracture", "LS - liquid", 
-  "LS - mosaic", "LS - cumulus", "S - recall fragment", "LS - pointer", "LS - cliff", "LS - hill", "LS - city", "LS - sign", "S - ship", "LS - plus", 
-  "S - recall flock", "S - bug", "LS - honeycomb", "L - ice large", "LS - path", "S - footprint small", "LS - planet", "LS - logo", "LS - multiplier", 
-  "S - fragment", "LS - stratus", "S - flock", "LS - river", "S - candle", "L - girder", "L - elevation", "L - urban", "L - plan", "L - floor",
-   "L - ruin", "L - corridor", "L - wall ", "L - pie chart", "L - house", "L - pod", "L - ceiling", "L - window displaced", "L - modern", 
-   "L - blueprint", "L - road", "L - bell curve", "L - beam thick", "L - perspective", "L - flame", "L - window pane", "L - window poly", 
-   "L - window frame", "L - frame", "L - future", "L - body", "L - beam medium", "L - head", "L - rural", "L - beam thin", "L - ripple", "L - brain", 
-   "L - flame high", "L - foothill", "L - mnemonic", "L - jet", "L - mountain", "L - rockies", "L - fingerprint", "L - haze", "L - skeleton", 
-   "L - skyline", "L - comic", "L - ribbon", "L - wave", "L - footprint large"
+  "range", "splash", "plane", "streetlight", "glass", "left", "right", "map", "fracture", "liquid", 
+  "mosaic", "cumulus", "recall fragment", "pointer", "cliff", "hill", "city", "sign", "ship", "plus", 
+  "recall flock", "bug", "honeycomb", "ice large", "path", "footprint small", "planet", "logo", "multiplier", "fragment", 
+  "stratus", "flock", "river", "candle", "girder", "elevation", "urban", "plan", "floor", "ruin", 
+  "corridor", "wall ", "pie chart", "house", "pod", "ceiling", "window displaced", "modern", "blueprint", "road", 
+  "bell curve", "beam thick", "perspective", "flame", "window pane", "window poly", 
+  "window frame", "frame", "future", "body", "beam medium", "head", "rural", "beam thin", "ripple", "brain", 
+  "flame high", "foothill", "mnemonic", "jet", "mountain", "rockies", "fingerprint", "haze", "skeleton", 
+  "skyline", "comic", "ribbon", "wave", "footprint large"
 ];
 let layer_1_indexes = [
-  3, 36, 42, 23, 11, 34, 35, 37, 38, 39, 2, 41, 43, 14, 40
+  14, 40, 43, 2, 41, 34, 35, 37, 38, 39, 23, 11, 42, 36, 3
 ];
 let layer_1_probabilities = [
-  20, 18, 17, 15, 15, 10, 10, 10, 10, 10, 7, 7, 6, 5, 5
+  5, 5, 6, 7, 7, 10, 10, 10, 10, 10, 15, 15, 17, 18, 20
 ];
 let layer_2_indexes = [
-  3, 4, 1, 5, 6, 0, 2, 7
+  2, 7, 0, 5, 6, 1, 4, 3
 ];
 let layer_2_probabilities = [
-  20, 15, 12, 10, 10, 8, 7, 7
+  7, 7, 8, 10, 10, 12, 15, 20
 ];
 let layer_3_indexes = [
-  10, 50, 13, 47, 49, 4, 46, 45, 1, 51, 52, 0, 5, 7, 48, 53, 6, 44, 54
+  54, 44, 48, 53, 6, 5, 7, 0, 52, 45, 1, 51, 46, 47, 49, 4, 10, 50, 13
 ];
 let layer_3_probabilities = [
-  20, 20, 20, 15, 15, 15, 14, 12, 12, 12, 10, 8, 7, 7, 6, 6, 6, 5, 4
+  4, 5, 6, 6, 6, 7, 7, 8, 10, 12, 12, 12, 14, 15, 15, 15, 20, 20, 20
 ];
 let layer_4_indexes = [
-  10, 13, 11, 16, 8, 9, 15, 14, 12
+  12, 14, 8, 9, 15, 11, 16, 10, 13
 ];
 let layer_4_probabilities = [
-  20, 20, 15, 15, 10, 10, 10, 5, 4
+  4, 5, 10, 10, 10, 15, 15, 20, 20
 ];
 let layer_5_indexes = [
-  58, 57, 19, 26, 56, 61, 65, 55, 22, 16, 62, 15, 9, 63, 64, 60, 59, 8, 66
+  8, 66, 59, 60, 9, 63, 64, 15, 62, 55, 22, 16, 65, 56, 61, 57, 19, 26, 58
 ];
 let layer_5_probabilities = [
-  25, 20, 20, 20, 18, 18, 16, 15, 15, 15, 12, 11, 10, 10, 10, 9, 8, 7, 7
+  7, 7, 8, 9, 10, 10, 10, 11, 12, 15, 15, 15, 16, 18, 18, 20, 20, 20, 25
 ];
 let layer_6_indexes = [
-  19, 25, 22, 23, 17, 24, 18, 21, 20
+  20, 21, 18, 17, 24, 22, 23, 19, 25
 ];
 let layer_6_probabilities = [
-  20, 20, 15, 15, 10, 10, 4, 3, 2
+  2, 3, 4, 10, 10, 15, 15, 20, 20
 ];
 let layer_7_indexes = [
-  28, 30, 68, 74, 27, 76, 73, 77, 69, 70, 79, 32, 75, 78, 24, 67, 17, 72, 71
+  71, 67, 17, 72, 24, 75, 78, 32, 70, 79, 69, 73, 77, 27, 76, 74, 68, 28, 30
 ];
 let layer_7_probabilities = [
-  20, 20, 18, 17, 16, 16, 15, 15, 13, 12, 12, 11, 10, 10, 9, 7, 7, 7, 6
+  6, 7, 7, 7, 9, 10, 10, 11, 12, 12, 13, 15, 15, 16, 16, 17, 18, 20, 20
 ];
 let layer_8_indexes = [
-  33, 29, 26, 28, 30, 31, 27, 32
+  27, 32, 26, 28, 30, 31, 29, 33
 ];
 let layer_8_probabilities = [
-  27, 25, 20, 20, 20, 20, 10, 10
+  10, 10, 20, 20, 20, 20, 25, 27
 ];
 let hodl_layer_indexes = [
-  58, 3, 10, 13, 19, 26, 28, 30, 61, 68, 74, 65, 27, 76, 11, 49, 4, 22, 16, 73, 
-  69, 45, 1, 62, 70, 15, 32, 52, 9, 64, 75, 78, 24, 0, 59, 5, 7, 8, 67, 17, 6, 71
+  6, 71, 5, 7, 8, 67, 17, 0, 59, 24, 52, 9, 64, 75, 78, 15, 32, 45, 1, 62, 70, 69, 
+  11, 49, 4, 22, 16, 73, 65, 27, 76, 74, 61, 68, 3, 10, 13, 19, 26, 28, 30, 58
 ];
 let hodl_probabilities = [
-  25, 20, 20, 20, 20, 20, 20, 20, 18, 18, 17, 16, 16, 16, 15, 15, 15, 15, 15, 15, 
-  13, 12, 12, 12, 12, 11, 11, 10, 10, 10, 10, 10, 9, 8, 8, 7, 7, 7, 7, 7, 6, 6
+  6, 6, 7, 7, 7, 7, 7, 8, 8, 9, 10, 10, 10, 10, 10, 11, 11, 12, 12, 12, 12, 13, 15, 
+  15, 15, 15, 15, 15, 16, 16, 16, 17, 18, 18, 20, 20, 20, 20, 20, 20, 20, 25
 ];
 let milestone_layer_indexes = [
-  33, 29, 3, 10, 13, 19, 26, 28, 30, 31, 4, 11, 16, 22, 1, 5, 6, 8, 9, 15, 17, 24, 
-  27, 32, 0, 2, 7, 14, 18, 21
+  21, 18, 14, 2, 7, 0, 5, 6, 8, 9, 15, 17, 24, 27, 32, 1, 
+  4, 11, 16, 22, 3, 10, 13, 19, 26, 28, 30, 31, 29, 33
 ];
 let milestone_probabilities = [
-  27, 25, 20, 20, 20, 20, 20, 20, 20, 20, 15, 15, 15, 15, 12, 10, 10, 10, 10, 10, 
-  10, 10, 10, 10, 8, 7, 7, 5, 4, 3
+  3, 4, 5, 7, 7, 8, 10, 10, 10, 10, 10, 10, 10, 10, 10, 12, 
+  15, 15, 15, 15, 20, 20, 20, 20, 20, 20, 20, 20, 25, 27
 ];
 
 // number of color chances
-let _number_of_colors =        [1, 8, 16, 2, 3, 4];
-let _number_of_color_chances = [5, 5, 5, 20, 50, 10];
+
+let _number_of_colors =        [1, 8, 16, 4, 2, 3];
+let _number_of_color_chances = [5, 5, 5, 10, 20, 50];
 
 // The names of all color schemes
 let color_names = [
-  "goldenhour", "dawn", "ibiza", "southbeach", "mist", "dusk","platinum", "palladium", "rhodium", "ipanema", 
-  "malibu", "night", "maldives", "venicebeach", "sunset", "vegas", "cannes"
+  "rhodium", "palladium", "vegas", "platinum", "ipanema", "malibu", "venicebeach", "cannes", "maldives", 
+  "dusk", "sunset", "mist", "southbeach", "night", "ibiza", "dawn", "goldenhour"
+
 ];
 let color_chance = [
-  40, 30, 20, 10, 8, 7, 5, 4, 3, 5, 5, 12, 6, 5, 7, 4, 5
+  3, 4, 4, 5, 5, 5, 5, 5, 6, 7, 7, 8, 10, 12, 20, 30, 40
 ];
 
 function nextInt(seed) {
@@ -109,28 +111,21 @@ function generateNumberOfColours(seed) {
 
 function generateColourNames(numberOfColours, seed) {
   let selected_color_names = [];
-
   for (let i = 0; i < numberOfColours; i++) {
+    let breakLoopCounter = 300;
+    while (breakLoopCounter > 0) {
+      breakLoopCounter --;
+      for (let j = 0; j < color_chance.length; j++){
+        var c = color_names[j];
     let r = nextInt(seed);
-    let r2 = nextInt(seed);
-    let j = r % color_chance.length;
-    let c = color_names[j];
-    let while_loop_breaker = 300;
-    while (r2 < 100 - color_chance[j] || selected_color_names.includes(c)) {
-      r = nextInt(seed);
-      r2 = nextInt(seed);
-      j = r % color_chance.length;
-      c = color_names[j];
-      if (while_loop_breaker <= 0) {
-        console.log("break");
+        if (r > 100 - color_chance[j] && ! selected_color_names.includes(c)){
+          breakLoopCounter = 0;
         break;
-      } else {
-        while_loop_breaker--;
-      } // not needed for the JS but may be good idea in Solidity version
+        }
+      }
     }
     selected_color_names.push(c);
   }
-
   return selected_color_names;
 }
 
@@ -141,6 +136,7 @@ function generateLayerPaths(seed) {
   for (let j = 0; j < types.length; j++) {
     for (let i = 0; i < 8; i++) {
       let _indexes;
+      let _probabilities;
       if (types[j] == 0) {
         // regular
         if (i == 0) {
@@ -177,23 +173,17 @@ function generateLayerPaths(seed) {
         _indexes = milestone_layer_indexes;
         _probabilities = milestone_probabilities;
       }
-      let r = nextInt(seed) % _indexes.length;
-      let r2 = nextInt(seed);
-      let p = paths[_indexes[r]];
-      let while_loop_breaker = 300;
-      while (
-        selected_layer_paths.includes(p) ||
-        r2 < 100 - _probabilities[i]
-      ) {
-        if (while_loop_breaker <= 0) {
-          console.log("break");
+      var breakLoopCounter = 300;
+      while (breakLoopCounter > 0) {
+        breakLoopCounter --;
+        for (let i2 = 0; i2 < _probabilities.length; i2++) {
+          let r = nextInt(seed);
+          var p = paths[_indexes[i2]];
+          if (r > 100 - _probabilities[i2] && ! selected_layer_paths.includes(p)) {
+            breakLoopCounter = 0;
           break;
-        } else {
-          while_loop_breaker--;
         }
-        r = nextInt(seed) % _indexes.length;
-        r2 = nextInt(seed);
-        p = paths[_indexes[r]];
+        }
       }
       selected_layer_paths.push(p);
     }
