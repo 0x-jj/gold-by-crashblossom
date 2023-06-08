@@ -51,7 +51,8 @@ async function storeScript(
       await storageContract.addChunkToScript(
         name,
         utilities.stringToBytes(scriptChunks[i]),
-       )
+        network.name === "hardhat" ? { gasLimit: 30_000_000 } : undefined
+      )
     );
     console.log(
       `${name} chunk #`,
@@ -87,13 +88,13 @@ async function main() {
 
   await storeScript(
     scriptyStorageContract,
-    "gold_by_crashblossom_base_v2",
+    "gold_by_crashblossom_base_v5",
     "scripts/goldBase.js"
   );
 
   await storeScript(
     scriptyStorageContract,
-    "gold_by_crashblossom_paths_v2",
+    "gold_by_crashblossom_paths_v5",
     "scripts/paths.js",
     true
   );
@@ -106,14 +107,13 @@ async function main() {
 
   await storeScript(
     scriptyStorageContract,
-    "gold_by_crashblossom_main_v2",
+    "gold_by_crashblossom_main_v5",
     "scripts/main.js"
   );
 
-  
   const scriptRequests = [
     {
-      name: "gold_by_crashblossom_base_v2",
+      name: "gold_by_crashblossom_base_v5",
       contractAddress: scriptyStorageContract.address,
       contractData: 0,
       wrapType: 0,
@@ -122,7 +122,7 @@ async function main() {
       scriptContent: utilities.emptyBytes(),
     },
     {
-      name: "gold_by_crashblossom_paths_v2",
+      name: "gold_by_crashblossom_paths_v5",
       contractAddress: scriptyStorageContract.address,
       contractData: 0,
       wrapType: 2,
@@ -140,7 +140,7 @@ async function main() {
       scriptContent: utilities.emptyBytes(),
     },
     {
-      name: "gold_by_crashblossom_main_v2",
+      name: "gold_by_crashblossom_main_v5",
       contractAddress: scriptyStorageContract.address,
       contractData: 0,
       wrapType: 0,
@@ -194,26 +194,26 @@ async function main() {
   await nftContract.mint(dev.address);
   console.log("Minted 1 NFT");
 
-  const tokenURI = await nftContract.tokenURI(0);
-  console.log("Got token URI");
-  const tokenURIDecoded = utilities.parseBase64DataURI(tokenURI);
-  console.log("Decoded token URI");
-  const tokenURIJSONDecoded = JSON.parse(tokenURIDecoded);
-  console.log("Parsed decoded token URI");
-  const animationURL = utilities.parseBase64DataURI(
-    tokenURIJSONDecoded.animation_url
-  );
-  console.log("Parsed animation url");
+  // const tokenURI = await nftContract.tokenURI(0);
+  // console.log("Got token URI");
+  // const tokenURIDecoded = utilities.parseBase64DataURI(tokenURI);
+  // console.log("Decoded token URI");
+  // const tokenURIJSONDecoded = JSON.parse(tokenURIDecoded);
+  // console.log("Parsed decoded token URI");
+  // const animationURL = utilities.parseBase64DataURI(
+  //   tokenURIJSONDecoded.animation_url
+  // );
+  // console.log("Parsed animation url");
 
-  utilities.writeFile(path.join(__dirname, "output", "tokenURI.txt"), tokenURI);
-  utilities.writeFile(
-    path.join(__dirname, "output", "output.html"),
-    animationURL
-  );
-  utilities.writeFile(
-    path.join(__dirname, "output", "metadata.json"),
-    tokenURIDecoded
-  );
+  // utilities.writeFile(path.join(__dirname, "output", "tokenURI.txt"), tokenURI);
+  // utilities.writeFile(
+  //   path.join(__dirname, "output", "output.html"),
+  //   animationURL
+  // );
+  // utilities.writeFile(
+  //   path.join(__dirname, "output", "metadata.json"),
+  //   tokenURIDecoded
+  // );
 
   // Verify contracts if network is goerli
   if (network.name == "goerli") {

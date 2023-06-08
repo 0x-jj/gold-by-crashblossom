@@ -14,6 +14,8 @@ import {ERC721} from "./lib/ERC721.sol";
 error NotAuthorized();
 error MaxSupplyReached();
 error ClaimingTooEarly();
+error ClaimingTooLate();
+error AlreadyClaimed();
 
 interface IGoldRenderer {
   function tokenURI(uint256 tokenId) external view returns (string memory);
@@ -25,7 +27,7 @@ contract Gold is ERC721, PaymentSplitter, AccessControl, Ownable {
   using SafeCast for uint256;
 
   uint256 public totalSupply = 0;
-  uint256 public constant MAX_SUPPLY = 400;
+  uint256 public constant MAX_SUPPLY = 500;
 
   address public sale;
 
@@ -70,6 +72,9 @@ contract Gold is ERC721, PaymentSplitter, AccessControl, Ownable {
   // Timestamp of the last transfer that happened on the contract
   uint256[HISTORY_LENGTH] public latestTransferTimestamps;
 
+  // Base timestamp to use to calculate averages in the art script
+  uint256 public baseTimestamp;
+
   constructor(
     address[] memory payees,
     uint256[] memory shares,
@@ -84,6 +89,11 @@ contract Gold is ERC721, PaymentSplitter, AccessControl, Ownable {
 
     wethContract = IERC20(wethContract_);
     goldRenderer = IGoldRenderer(goldRenderer_);
+    baseTimestamp = block.timestamp;
+  }
+
+  function setBaseTimestamp(uint256 _baseTimestamp) external onlyOwner {
+    baseTimestamp = _baseTimestamp;
   }
 
   function setSaleAddress(address _sale) external onlyRole(DEFAULT_ADMIN_ROLE) {
@@ -112,56 +122,86 @@ contract Gold is ERC721, PaymentSplitter, AccessControl, Ownable {
   }
 
   function claimBonusPlates(uint256 tokenId, uint8 milestone) external {
+    // TODO: CHANGE MINS/SECS TO DAYS
     if (ownerOf(tokenId) != _msgSender()) revert NotAuthorized();
 
     uint256 lastTransferTimestamp = latestTransferTimestamp(tokenData[tokenId]);
-    uint256 timeSinceLastTransfer = block.timestamp - lastTransferTimestamp;
 
-    if (milestone == 0) {
-      if (tokenData[tokenId].held6MonthsClaimedBy != address(0))
-        revert NotAuthorized();
+    if (milestone == 1) {
+      if (tokenData[tokenId].held6MonthsClaimedBy != address(0)) {
+        revert AlreadyClaimed();
+      }
 
-      if (timeSinceLastTransfer < 6 * 30 days) revert ClaimingTooEarly();
+      uint256 eligibleAt = lastTransferTimestamp + (6 * 30 seconds);
+
+      if (block.timestamp < eligibleAt) revert ClaimingTooEarly();
+      if (block.timestamp > (eligibleAt + (24 minutes))) revert ClaimingTooLate();
+
       tokenData[tokenId].held6MonthsClaimedBy = _msgSender();
     }
 
-    if (milestone == 1) {
-      if (tokenData[tokenId].held12MonthsClaimedBy != address(0))
-        revert NotAuthorized();
+    if (milestone == 2) {
+      if (tokenData[tokenId].held12MonthsClaimedBy != address(0)) {
+        revert AlreadyClaimed();
+      }
 
-      if (timeSinceLastTransfer < 12 * 30 days) revert ClaimingTooEarly();
+      uint256 eligibleAt = lastTransferTimestamp + (12 * 30 minutes);
+
+      if (block.timestamp < eligibleAt) revert ClaimingTooEarly();
+      if (block.timestamp > (eligibleAt + (24 minutes))) revert ClaimingTooLate();
+
       tokenData[tokenId].held12MonthsClaimedBy = _msgSender();
     }
 
-    if (milestone == 2) {
-      if (tokenData[tokenId].held24MonthsClaimedBy != address(0))
-        revert NotAuthorized();
+    if (milestone == 3) {
+      if (tokenData[tokenId].held24MonthsClaimedBy != address(0)) {
+        revert AlreadyClaimed();
+      }
 
-      if (timeSinceLastTransfer < 24 * 30 days) revert ClaimingTooEarly();
+      uint256 eligibleAt = lastTransferTimestamp + (24 * 30 minutes);
+
+      if (block.timestamp < eligibleAt) revert ClaimingTooEarly();
+      if (block.timestamp > (eligibleAt + (24 minutes))) revert ClaimingTooLate();
+
       tokenData[tokenId].held24MonthsClaimedBy = _msgSender();
     }
 
-    if (milestone == 3) {
-      if (tokenData[tokenId].held60MonthsClaimedBy != address(0))
-        revert NotAuthorized();
+    if (milestone == 4) {
+      if (tokenData[tokenId].held60MonthsClaimedBy != address(0)) {
+        revert AlreadyClaimed();
+      }
 
-      if (timeSinceLastTransfer < 60 * 30 days) revert ClaimingTooEarly();
+      uint256 eligibleAt = lastTransferTimestamp + (60 * 30 minutes);
+
+      if (block.timestamp < eligibleAt) revert ClaimingTooEarly();
+      if (block.timestamp > (eligibleAt + (24 minutes))) revert ClaimingTooLate();
+
       tokenData[tokenId].held60MonthsClaimedBy = _msgSender();
     }
 
-    if (milestone == 4) {
-      if (tokenData[tokenId].held120MonthsClaimedBy != address(0))
-        revert NotAuthorized();
+    if (milestone == 5) {
+      if (tokenData[tokenId].held120MonthsClaimedBy != address(0)) {
+        revert AlreadyClaimed();
+      }
 
-      if (timeSinceLastTransfer < 120 * 30 days) revert ClaimingTooEarly();
+      uint256 eligibleAt = lastTransferTimestamp + (120 * 30 minutes);
+
+      if (block.timestamp < eligibleAt) revert ClaimingTooEarly();
+      if (block.timestamp > (eligibleAt + (24 minutes))) revert ClaimingTooLate();
+
       tokenData[tokenId].held120MonthsClaimedBy = _msgSender();
     }
 
-    if (milestone == 5) {
-      if (tokenData[tokenId].held240MonthsClaimedBy != address(0))
-        revert NotAuthorized();
+    if (milestone == 6) {
+      if (tokenData[tokenId].held240MonthsClaimedBy != address(0)) {
+        revert AlreadyClaimed();
+      }
 
-      if (timeSinceLastTransfer < 240 * 30 days) revert ClaimingTooEarly();
+      uint256 eligibleAt = lastTransferTimestamp + (240 * 30 minutes);
+
+      if (block.timestamp < eligibleAt) revert ClaimingTooEarly();
+      if (block.timestamp > (eligibleAt + (24 minutes))) revert ClaimingTooLate();
+
       tokenData[tokenId].held240MonthsClaimedBy = _msgSender();
     }
   }
@@ -178,17 +218,14 @@ contract Gold is ERC721, PaymentSplitter, AccessControl, Ownable {
     return count;
   }
 
-  function numberOfBonusClusters(
-    uint256 tokenId
-  ) external view returns (uint256) {
+  function numberOfBonusClusters() external view returns (uint256) {
     uint256 count = 0;
-    uint256 mintTimestamp = tokenData[tokenId].mintTimestamp;
-    if (block.timestamp > (mintTimestamp + (6 * 30 days))) count++;
-    if (block.timestamp > (mintTimestamp + (12 * 30 days))) count++;
-    if (block.timestamp > (mintTimestamp + (24 * 30 days))) count++;
-    if (block.timestamp > (mintTimestamp + (60 * 30 days))) count++;
-    if (block.timestamp > (mintTimestamp + (120 * 30 days))) count++;
-    if (block.timestamp > (mintTimestamp + (240 * 30 days))) count++;
+    if (block.timestamp > 1703167200) count++; // Dec 21, 2023 (6m)
+    if (block.timestamp > 1718974800) count++; // Jun 21, 2024 (1y)
+    if (block.timestamp > 1750510800) count++; // Jun 21, 2025 (2y)
+    if (block.timestamp > 1845205200) count++; // Jun 21, 2028 (5y)
+    if (block.timestamp > 2002971600) count++; // Jun 21, 2033 (10y)
+    if (block.timestamp > 2318504400) count++; // Jun 21, 2043 (20y)
     return count;
   }
 
@@ -213,7 +250,6 @@ contract Gold is ERC721, PaymentSplitter, AccessControl, Ownable {
 
   // TODO: Remove
   function mintMany(address to, uint256 count) external {
-    require(count <= 10, "Can only mint 10 at a time");
     for (uint256 i = 0; i < count; i++) {
       this.mint(to);
     }
@@ -327,6 +363,8 @@ contract Gold is ERC721, PaymentSplitter, AccessControl, Ownable {
   function latestTransferTimestamp(
     TokenData memory _tokenData
   ) internal pure returns (uint256) {
+    if (_tokenData.transferCount == 0) return _tokenData.mintTimestamp;
+
     return
       _tokenData.latestTransferTimestamps[
         (_tokenData.transferCount - 1) % HISTORY_LENGTH

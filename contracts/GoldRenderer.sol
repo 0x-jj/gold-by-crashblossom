@@ -25,11 +25,11 @@ interface IGoldContract {
 
   function numberOfBonusPlates(uint256 tokenId) external view returns (uint256);
 
-  function numberOfBonusClusters(
-    uint256 tokenId
-  ) external view returns (uint256);
+  function numberOfBonusClusters() external view returns (uint256);
 
   function totalSupply() external view returns (uint256);
+
+  function baseTimestamp() external view returns (uint256);
 }
 
 /// @title GoldRenderer
@@ -85,11 +85,11 @@ contract GoldRenderer is AccessControl {
 
   function getSeedVariables(
     uint256 tokenId
-  ) internal view returns (uint256, uint256, uint256) {
-    (, uint256 mintTimestamp, bytes32 seed) = goldContract.tokenData(tokenId);
+  ) internal view returns (uint256, uint256) {
+    (, , bytes32 seed) = goldContract.tokenData(tokenId);
     uint256 seedToken = uint256(seed) % (10 ** 6);
     uint256 tokenSeedIncrement = 999 + tokenId;
-    return (seedToken, tokenSeedIncrement, mintTimestamp);
+    return (seedToken, tokenSeedIncrement);
   }
 
   function getMetadataObject(
@@ -119,49 +119,48 @@ contract GoldRenderer is AccessControl {
   function tokenURI(uint256 tokenId) external view returns (string memory) {
     WrappedScriptRequest[] memory requests = new WrappedScriptRequest[](5);
 
-    (
-      uint256 seedToken,
-      uint256 tokenSeedIncrement,
-      uint256 mintTimestamp
-    ) = getSeedVariables(tokenId);
+    (uint256 seedToken, uint256 tokenSeedIncrement) = getSeedVariables(tokenId);
     (
       string memory contractMetricsSelector,
       string memory tokenMetricsSelector
     ) = goldContract.getSelectors();
 
-    requests[0].name = "gold_by_crashblossom_base_v3";
+    uint256 baseTimestamp = goldContract.baseTimestamp();
+
+    requests[0].name = "gold_by_crashblossom_base_v5";
     requests[0].wrapType = 0; // <script>[script]</script>
     requests[0].contractAddress = scriptyStorageAddress;
 
     requests[1].wrapType = 0; // <script>[script]</script>
     requests[1].scriptContent = abi.encodePacked(
-      "let u = ",
+      'let w = "',
+      Strings.toHexString(address(goldContract)),
+      '";',
+      'let L = "',
+      contractMetricsSelector,
+      '";',
+      'let M = "',
+      tokenMetricsSelector,
+      '";',
+      "let $ = ",
+      toString(baseTimestamp),
+      ";",
+      "let F = ",
+      toString(goldContract.totalSupply()),
+      ";",
+      "let O = 5;",
+      "let P = ",
+      toString(tokenId),
+      ";",
+      "let h = ",
       toString(seedToken),
       ";",
       "let s = ",
       toString(tokenSeedIncrement),
-      ";",
-      "let O = ",
-      toString(tokenId),
-      ";",
-      "let R = ",
-      toString(goldContract.totalSupply()),
-      ";",
-      "let q = ",
-      toString(mintTimestamp),
       ";"
-      'let P = "',
-      contractMetricsSelector,
-      '";',
-      'let F = "',
-      tokenMetricsSelector,
-      '";',
-      'let E = "',
-      Strings.toHexString(address(goldContract)),
-      '";'
     );
 
-    requests[2].name = "gold_by_crashblossom_paths_v3";
+    requests[2].name = "gold_by_crashblossom_paths_v5";
     requests[2].wrapType = 2;
     requests[2].contractAddress = scriptyStorageAddress;
 
@@ -169,7 +168,7 @@ contract GoldRenderer is AccessControl {
     requests[3].wrapType = 0; // <script>[script]</script>
     requests[3].contractAddress = scriptyStorageAddress;
 
-    requests[4].name = "gold_by_crashblossom_main_v3";
+    requests[4].name = "gold_by_crashblossom_main_v5";
     requests[4].wrapType = 0; // <script>[script]</script>
     requests[4].contractAddress = scriptyStorageAddress;
 
@@ -250,22 +249,20 @@ contract GoldRenderer is AccessControl {
   ) public view returns (string[] memory) {
     string[] memory selectedColorNames = new string[](numberOfColours);
     for (uint256 i = 0; i < numberOfColours; i++) {
-      uint256 r = nextInt(seed);
-
-      uint256 r2 = nextInt(seed);
-
-      uint256 j = r % color_chance.length;
-      string memory c = color_names[j];
       uint256 while_loop_breaker = 300;
-      while (r2 < 100 - color_chance[j] || findElement(selectedColorNames, c)) {
-        r = nextInt(seed);
-        r2 = nextInt(seed);
-        j = r % color_chance.length;
-        c = color_names[j];
-        if (while_loop_breaker <= 0) {
-          break;
-        } else {
-          while_loop_breaker--;
+      string memory c;
+      while (while_loop_breaker > 0) {
+        while_loop_breaker--;
+
+        for (uint256 j = 0; j < color_chance.length; j++) {
+          c = color_names[j];
+          uint256 r = nextInt(seed);
+          if (
+            r > 100 - color_chance[j] && !findElement(selectedColorNames, c)
+          ) {
+            while_loop_breaker = 0;
+            break;
+          }
         }
       }
       selectedColorNames[i] = c;
@@ -279,11 +276,12 @@ contract GoldRenderer is AccessControl {
   ) public view returns (string[] memory) {
     string[] memory selected_layer_paths = new string[](24);
     uint8[3] memory types = [0, 1, 2];
-    uint256[] memory _probabilities;
+
     uint256 count = 0;
     for (uint256 j = 0; j < types.length; j++) {
       for (uint256 i = 0; i < 8; i++) {
         uint256[] memory _indexes;
+        uint256[] memory _probabilities;
         if (types[j] == 0) {
           if (i == 0) {
             _indexes = layer_1_indexes;
@@ -317,21 +315,21 @@ contract GoldRenderer is AccessControl {
           _indexes = milestone_layer_indexes;
           _probabilities = milestone_probabilities;
         }
-        uint256 r = nextInt(seed) % _indexes.length;
-        uint256 r2 = nextInt(seed);
-        string memory p = paths[_indexes[r]];
         uint256 while_loop_breaker = 300;
-        while (
-          findElement(selected_layer_paths, p) || r2 < 100 - _probabilities[i]
-        ) {
-          if (while_loop_breaker <= 0) {
-            break;
-          } else {
-            while_loop_breaker--;
+        string memory p;
+        while (while_loop_breaker > 0) {
+          while_loop_breaker--;
+          for (uint256 i2 = 0; i2 < _probabilities.length; i2++) {
+            uint256 r = nextInt(seed);
+            p = paths[_indexes[i2]];
+            if (
+              r > 100 - _probabilities[i2] &&
+              !findElement(selected_layer_paths, p)
+            ) {
+              while_loop_breaker = 0;
+              break;
+            }
           }
-          r = nextInt(seed) % _indexes.length;
-          r2 = nextInt(seed);
-          p = paths[_indexes[r]];
         }
         selected_layer_paths[count] = p;
         count++;
@@ -343,12 +341,10 @@ contract GoldRenderer is AccessControl {
   function generateAllTraits(
     uint256 tokenId
   ) public view returns (Trait[] memory) {
-    (uint256 tokenSeed, uint256 tokenSeedIncrement, ) = getSeedVariables(
-      tokenId
-    );
+    (uint256 tokenSeed, uint256 tokenSeedIncrement) = getSeedVariables(tokenId);
 
     uint256 bonusPlateCount = goldContract.numberOfBonusPlates(tokenId);
-    uint256 bonusClusterCount = goldContract.numberOfBonusClusters(tokenId);
+    uint256 bonusClusterCount = goldContract.numberOfBonusClusters();
 
     Seed memory seed = Seed({
       current: tokenSeed,
@@ -473,181 +469,451 @@ contract GoldRenderer is AccessControl {
     return string(buffer);
   }
 
-  string[] public paths = [
-    "LS - range",
-    "LS - splash",
-    "LS - plane",
-    "LS - streetlight",
-    "LS - glass",
-    "LS - left",
-    "LS - right",
-    "LS - map",
-    "LS - fracture",
-    "LS - liquid",
-    "LS - mosaic",
-    "LS - cumulus",
-    "S - recall fragment",
-    "LS - pointer",
-    "LS - cliff",
-    "LS - hill",
-    "LS - city",
-    "LS - sign",
-    "S - ship",
-    "LS - plus",
-    "S - recall flock",
-    "S - bug",
-    "LS - honeycomb",
-    "L - ice large",
-    "LS - path",
-    "S - footprint small",
-    "LS - planet",
-    "LS - logo",
-    "LS - multiplier",
-    "S - fragment",
-    "LS - stratus",
-    "S - flock",
-    "LS - river",
-    "S - candle",
-    "L - girder",
-    "L - elevation",
-    "L - urban",
-    "L - plan",
-    "L - floor",
-    "L - ruin",
-    "L - corridor",
-    "L - wall ",
-    "L - pie chart",
-    "L - house",
-    "L - pod",
-    "L - ceiling",
-    "L - window displaced",
-    "L - modern",
-    "L - blueprint",
-    "L - road",
-    "L - bell curve",
-    "L - beam thick",
-    "L - perspective",
-    "L - flame",
-    "L - window pane",
-    "L - window poly",
-    "L - window frame",
-    "L - frame",
-    "L - future",
-    "L - body",
-    "L - beam medium",
-    "L - head",
-    "L - rural",
-    "L - beam thin",
-    "L - ripple",
-    "L - brain",
-    "L - flame high",
-    "L - foothill",
-    "L - mnemonic",
-    "L - jet",
-    "L - mountain",
-    "L - rockies",
-    "L - fingerprint",
-    "L - haze",
-    "L - skeleton",
-    "L - skyline",
-    "L - comic",
-    "L - ribbon",
-    "L - wave",
-    "L - footprint large"
+  string[] internal paths = [
+    "range",
+    "splash",
+    "plane",
+    "streetlight",
+    "glass",
+    "left",
+    "right",
+    "map",
+    "fracture",
+    "liquid",
+    "mosaic",
+    "cumulus",
+    "recall fragment",
+    "pointer",
+    "cliff",
+    "hill",
+    "city",
+    "sign",
+    "ship",
+    "plus",
+    "recall flock",
+    "bug",
+    "honeycomb",
+    "ice large",
+    "path",
+    "footprint small",
+    "planet",
+    "logo",
+    "multiplier",
+    "fragment",
+    "stratus",
+    "flock",
+    "river",
+    "candle",
+    "girder",
+    "elevation",
+    "urban",
+    "plan",
+    "floor",
+    "ruin",
+    "corridor",
+    "wall ",
+    "pie chart",
+    "house",
+    "pod",
+    "ceiling",
+    "window displaced",
+    "modern",
+    "blueprint",
+    "road",
+    "bell curve",
+    "beam thick",
+    "perspective",
+    "flame",
+    "window pane",
+    "window poly",
+    "window frame",
+    "frame",
+    "future",
+    "body",
+    "beam medium",
+    "head",
+    "rural",
+    "beam thin",
+    "ripple",
+    "brain",
+    "flame high",
+    "foothill",
+    "mnemonic",
+    "jet",
+    "mountain",
+    "rockies",
+    "fingerprint",
+    "haze",
+    "skeleton",
+    "skyline",
+    "comic",
+    "ribbon",
+    "wave",
+    "footprint large"
   ];
-
   uint256[] internal layer_1_indexes = [
-     3, 36, 42, 23, 11, 34, 35, 37, 38, 39, 2, 41, 43, 14, 40
+    14,
+    40,
+    43,
+    2,
+    41,
+    34,
+    35,
+    37,
+    38,
+    39,
+    23,
+    11,
+    42,
+    36,
+    3
   ];
   uint256[] internal layer_1_probabilities = [
-    20, 18, 17, 15, 15, 10, 10, 10, 10, 10, 7, 7, 6, 5, 5
-  ];
-  uint256[] internal layer_2_indexes = [3, 4, 1, 5, 6, 0, 2, 7];
-  uint256[] internal layer_2_probabilities = [20, 15, 12, 10, 10, 8, 7, 7];
-  uint256[] internal layer_3_indexes = [
-  10, 50, 13, 47, 49, 4, 46, 45, 1, 51, 52, 0, 5, 7, 48, 53, 6, 44, 54
-];
-  uint256[] internal layer_3_probabilities = [
-  20, 20, 20, 15, 15, 15, 14, 12, 12, 12, 10, 8, 7, 7, 6, 6, 6, 5, 4
-];
-  uint256[] internal layer_4_indexes = [10, 13, 11, 16, 8, 9, 15, 14, 12];
-  uint256[] internal layer_4_probabilities = [20, 20, 15, 15, 10, 10, 10, 5, 4];
-  uint256[] internal layer_5_indexes = [
-  58, 57, 19, 26, 56, 61, 65, 55, 22, 16, 62, 15, 9, 63, 64, 60, 59, 8, 66
-];
-  uint256[] layer_5_probabilities = [
-  25, 20, 20, 20, 18, 18, 16, 15, 15, 15, 12, 11, 10, 10, 10, 9, 8, 7, 7
-];
-  uint256[] internal layer_6_indexes = [19, 25, 22, 23, 17, 24, 18, 21, 20];
-  uint256[] internal layer_6_probabilities = [20, 20, 15, 15, 10, 10, 4, 3, 2];
-  uint256[] internal layer_7_indexes = [
-  28, 30, 68, 74, 27, 76, 73, 77, 69, 70, 79, 32, 75, 78, 24, 67, 17, 72, 71
-];
-  uint256[] internal layer_7_probabilities = [
-  20, 20, 18, 17, 16, 16, 15, 15, 13, 12, 12, 11, 10, 10, 9, 7, 7, 7, 6
-];
-  uint256[] internal layer_8_indexes = [33, 29, 26, 28, 30, 31, 27, 32];
-  uint256[] internal layer_8_probabilities = [27, 25, 20, 20, 20, 20, 10, 10];
-  uint256[] internal hodl_layer_indexes = [
-  58, 3, 10, 13, 19, 26, 28, 30, 61, 68, 74, 65, 27, 76, 11, 49, 4, 22, 16, 73,
-  69, 45, 1, 62, 70, 15, 32, 52, 9, 64, 75, 78, 24, 0, 59, 5, 7, 8, 67, 17, 6,
-  71
-];
-  uint256[] internal hodl_probabilities = [
-  25, 20, 20, 20, 20, 20, 20, 20, 18, 18, 17, 16, 16, 16, 15, 15, 15, 15, 15,
-  15, 13, 12, 12, 12, 12, 11, 11, 10, 10, 10, 10, 10, 9, 8, 8, 7, 7, 7, 7, 7, 6,
-  6
-];
-  uint256[] internal milestone_layer_indexes = [
-  33, 29, 3, 10, 13, 19, 26, 28, 30, 31, 4, 11, 16, 22, 1, 5, 6, 8, 9, 15, 17,
-  24, 27, 32, 0, 2, 7, 14, 18, 21
-];
-  uint256[] internal milestone_probabilities = [
-  27, 25, 20, 20, 20, 20, 20, 20, 20, 20, 15, 15, 15, 15, 12, 10, 10, 10, 10,
-  10, 10, 10, 10, 10, 8, 7, 7, 5, 4, 3
-];
-
-  // number of color chances
-  uint256[] internal _number_of_colors = [1, 8, 16, 2, 3, 4];
-  uint256[] internal _number_of_color_chances = [5, 5, 5, 20, 50, 10];
-
-  // The names of all color schemes
-  string[] internal color_names = [
-    "goldenhour",
-    "dawn",
-    "ibiza",
-    "southbeach",
-    "mist",
-    "dusk",
-    "platinum",
-    "palladium",
-    "rhodium",
-    "ipanema",
-    "malibu",
-    "night",
-    "maldives",
-    "venicebeach",
-    "sunset",
-    "vegas",
-    "cannes"
-  ];
-  uint256[] internal color_chance = [
-    40,
-    30,
-    20,
-    10,
-    8,
+    5,
+    5,
+    6,
     7,
-    5,
-    4,
-    3,
-    5,
-    5,
-    12,
+    7,
+    10,
+    10,
+    10,
+    10,
+    10,
+    15,
+    15,
+    17,
+    18,
+    20
+  ];
+  uint256[] internal layer_2_indexes = [2, 7, 0, 5, 6, 1, 4, 3];
+  uint256[] internal layer_2_probabilities = [7, 7, 8, 10, 10, 12, 15, 20];
+  uint256[] internal layer_3_indexes = [
+    54,
+    44,
+    48,
+    53,
     6,
     5,
     7,
+    0,
+    52,
+    45,
+    1,
+    51,
+    46,
+    47,
+    49,
     4,
-    5
+    10,
+    50,
+    13
+  ];
+  uint256[] internal layer_3_probabilities = [
+    4,
+    5,
+    6,
+    6,
+    6,
+    7,
+    7,
+    8,
+    10,
+    12,
+    12,
+    12,
+    14,
+    15,
+    15,
+    15,
+    20,
+    20,
+    20
+  ];
+  uint256[] internal layer_4_indexes = [12, 14, 8, 9, 15, 11, 16, 10, 13];
+  uint256[] internal layer_4_probabilities = [4, 5, 10, 10, 10, 15, 15, 20, 20];
+  uint256[] internal layer_5_indexes = [
+    8,
+    66,
+    59,
+    60,
+    9,
+    63,
+    64,
+    15,
+    62,
+    55,
+    22,
+    16,
+    65,
+    56,
+    61,
+    57,
+    19,
+    26,
+    58
+  ];
+  uint256[] internal layer_5_probabilities = [
+    7,
+    7,
+    8,
+    9,
+    10,
+    10,
+    10,
+    11,
+    12,
+    15,
+    15,
+    15,
+    16,
+    18,
+    18,
+    20,
+    20,
+    20,
+    25
+  ];
+  uint256[] internal layer_6_indexes = [20, 21, 18, 17, 24, 22, 23, 19, 25];
+  uint256[] internal layer_6_probabilities = [2, 3, 4, 10, 10, 15, 15, 20, 20];
+  uint256[] internal layer_7_indexes = [
+    71,
+    67,
+    17,
+    72,
+    24,
+    75,
+    78,
+    32,
+    70,
+    79,
+    69,
+    73,
+    77,
+    27,
+    76,
+    74,
+    68,
+    28,
+    30
+  ];
+  uint256[] internal layer_7_probabilities = [
+    6,
+    7,
+    7,
+    7,
+    9,
+    10,
+    10,
+    11,
+    12,
+    12,
+    13,
+    15,
+    15,
+    16,
+    16,
+    17,
+    18,
+    20,
+    20
+  ];
+  uint256[] internal layer_8_indexes = [27, 32, 26, 28, 30, 31, 29, 33];
+  uint256[] internal layer_8_probabilities = [10, 10, 20, 20, 20, 20, 25, 27];
+  uint256[] internal hodl_layer_indexes = [
+    6,
+    71,
+    5,
+    7,
+    8,
+    67,
+    17,
+    0,
+    59,
+    24,
+    52,
+    9,
+    64,
+    75,
+    78,
+    15,
+    32,
+    45,
+    1,
+    62,
+    70,
+    69,
+    11,
+    49,
+    4,
+    22,
+    16,
+    73,
+    65,
+    27,
+    76,
+    74,
+    61,
+    68,
+    3,
+    10,
+    13,
+    19,
+    26,
+    28,
+    30,
+    58
+  ];
+  uint256[] internal hodl_probabilities = [
+    6,
+    6,
+    7,
+    7,
+    7,
+    7,
+    7,
+    8,
+    8,
+    9,
+    10,
+    10,
+    10,
+    10,
+    10,
+    11,
+    11,
+    12,
+    12,
+    12,
+    12,
+    13,
+    15,
+    15,
+    15,
+    15,
+    15,
+    15,
+    16,
+    16,
+    16,
+    17,
+    18,
+    18,
+    20,
+    20,
+    20,
+    20,
+    20,
+    20,
+    20,
+    25
+  ];
+  uint256[] internal milestone_layer_indexes = [
+    21,
+    18,
+    14,
+    2,
+    7,
+    0,
+    5,
+    6,
+    8,
+    9,
+    15,
+    17,
+    24,
+    27,
+    32,
+    1,
+    4,
+    11,
+    16,
+    22,
+    3,
+    10,
+    13,
+    19,
+    26,
+    28,
+    30,
+    31,
+    29,
+    33
+  ];
+  uint256[] internal milestone_probabilities = [
+    3,
+    4,
+    5,
+    7,
+    7,
+    8,
+    10,
+    10,
+    10,
+    10,
+    10,
+    10,
+    10,
+    10,
+    10,
+    12,
+    15,
+    15,
+    15,
+    15,
+    20,
+    20,
+    20,
+    20,
+    20,
+    20,
+    20,
+    20,
+    25,
+    27
+  ];
+
+  // number of color chances
+
+  uint256[] internal _number_of_colors = [1, 8, 16, 4, 2, 3];
+  uint256[] internal _number_of_color_chances = [5, 5, 5, 10, 20, 50];
+
+  // The names of all color schemes
+  string[] internal color_names = [
+    "rhodium",
+    "palladium",
+    "vegas",
+    "platinum",
+    "ipanema",
+    "malibu",
+    "venicebeach",
+    "cannes",
+    "maldives",
+    "dusk",
+    "sunset",
+    "mist",
+    "southbeach",
+    "night",
+    "ibiza",
+    "dawn",
+    "goldenhour"
+  ];
+  uint256[] internal color_chance = [
+    3,
+    4,
+    4,
+    5,
+    5,
+    5,
+    5,
+    5,
+    6,
+    7,
+    7,
+    8,
+    10,
+    12,
+    20,
+    30,
+    40
   ];
 }

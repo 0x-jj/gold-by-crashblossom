@@ -71,20 +71,20 @@ async function main() {
 
   await storeScript(
     scriptyStorageContract,
-    "gold_by_crashblossom_base_v3",
+    "gold_by_crashblossom_base_v5",
     "../scripts/goldBase.js"
   );
 
   await storeScript(
     scriptyStorageContract,
-    "gold_by_crashblossom_paths_v3",
+    "gold_by_crashblossom_paths_v5",
     "../scripts/paths.js",
     true
   );
 
   await storeScript(
     scriptyStorageContract,
-    "gold_by_crashblossom_main_v3",
+    "gold_by_crashblossom_main_v5",
     "../scripts/main.js"
   );
 }
