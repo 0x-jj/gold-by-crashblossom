@@ -7,8 +7,7 @@ import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {SafeCast} from "@openzeppelin/contracts/utils/math/SafeCast.sol";
 import {AccessControl} from "@openzeppelin/contracts/access/AccessControl.sol";
-
-import {LinearDutchAuction} from "./lib/LinearDutchAuction.sol";
+import {Pausable} from "@openzeppelin/contracts/security/Pausable.sol";
 import {ERC721} from "./lib/ERC721.sol";
 
 error NotAuthorized();
@@ -19,17 +18,19 @@ error AlreadyClaimed();
 
 interface IGoldRenderer {
   function tokenURI(uint256 tokenId) external view returns (string memory);
+
+  function numberOfBonusPlates(uint256 tokenId) external view returns (uint256);
 }
 
 /// @title Gold
 /// @author @0x_jj
-contract Gold is ERC721, PaymentSplitter, AccessControl, Ownable {
+contract Gold is ERC721, PaymentSplitter, AccessControl, Ownable, Pausable {
   using SafeCast for uint256;
 
-  uint256 public totalSupply = 0;
-  uint256 public constant MAX_SUPPLY = 500;
+  uint256 public currentTokenId = 0;
+  uint256 public tokenIdMax;
 
-  address public sale;
+  address public minter;
 
   IGoldRenderer public goldRenderer;
   IERC20 public wethContract;
@@ -80,7 +81,8 @@ contract Gold is ERC721, PaymentSplitter, AccessControl, Ownable {
     uint256[] memory shares,
     address[] memory admins_,
     address wethContract_,
-    address goldRenderer_
+    address goldRenderer_,
+    uint256 tokenIdMax_
   ) PaymentSplitter(payees, shares) ERC721("GOLD", "GOLD") {
     _grantRole(DEFAULT_ADMIN_ROLE, _msgSender());
     for (uint256 i = 0; i < admins_.length; i++) {
@@ -90,20 +92,7 @@ contract Gold is ERC721, PaymentSplitter, AccessControl, Ownable {
     wethContract = IERC20(wethContract_);
     goldRenderer = IGoldRenderer(goldRenderer_);
     baseTimestamp = block.timestamp;
-  }
-
-  function setBaseTimestamp(uint256 _baseTimestamp) external onlyOwner {
-    baseTimestamp = _baseTimestamp;
-  }
-
-  function setSaleAddress(address _sale) external onlyRole(DEFAULT_ADMIN_ROLE) {
-    sale = _sale;
-  }
-
-  function setRendererAddress(
-    address _renderer
-  ) external onlyRole(DEFAULT_ADMIN_ROLE) {
-    goldRenderer = IGoldRenderer(_renderer);
+    tokenIdMax = tokenIdMax_;
   }
 
   receive() external payable override {
@@ -115,10 +104,83 @@ contract Gold is ERC721, PaymentSplitter, AccessControl, Ownable {
     ethReceivedCount += 1;
   }
 
-  function tokenURI(
-    uint256 tokenId
-  ) public view override returns (string memory) {
+  function unpause() external onlyOwner {
+    _unpause();
+  }
+
+  function pause() external onlyOwner {
+    _pause();
+  }
+
+  function setBaseTimestamp(uint256 _baseTimestamp) external onlyOwner {
+    baseTimestamp = _baseTimestamp;
+  }
+
+  function setMinterAddress(address _minter) external onlyRole(DEFAULT_ADMIN_ROLE) {
+    minter = _minter;
+  }
+
+  function setRendererAddress(address _renderer) external onlyRole(DEFAULT_ADMIN_ROLE) {
+    goldRenderer = IGoldRenderer(_renderer);
+  }
+
+  function mint(address to) public whenNotPaused {
+    if (currentTokenId >= tokenIdMax) revert MaxSupplyReached();
+    if (!(_msgSender() != minter || _msgSender() != owner())) revert NotAuthorized();
+
+    uint256 tokenId = currentTokenId;
+    currentTokenId++;
+    tokenData[tokenId].mintTimestamp = block.timestamp;
+    tokenData[tokenId].seed = keccak256(
+      abi.encodePacked(blockhash(block.number - 1), block.number, block.timestamp, _msgSender(), tokenId)
+    );
+    _safeMint(to, tokenId);
+  }
+
+  // TODO: Remove
+  function mintMany(address to, uint256 count) external {
+    for (uint256 i = 0; i < count; i++) {
+      this.mint(to);
+    }
+  }
+
+  function tokenURI(uint256 tokenId) public view override returns (string memory) {
     return goldRenderer.tokenURI(tokenId);
+  }
+
+  function _afterTokenTransfer(address from, address, uint256 tokenId, uint256) internal override {
+    if (from == address(0)) {
+      return;
+    }
+
+    // Record latest transfer on contract
+    latestTransferTimestamps[transferCount % HISTORY_LENGTH] = block.timestamp;
+
+    // Record latest transfer on token. Unordered, to be sorted by timestamp off chain
+    tokenData[tokenId].latestTransferTimestamps[tokenData[tokenId].transferCount % HISTORY_LENGTH] = block
+      .timestamp;
+
+    // Increase transfer counts on token and contract. Important so that we can correctly write to history arrays in a loop
+    tokenData[tokenId].transferCount++;
+    transferCount++;
+
+    // Record WETH receipts, if any, attempting to match how we record native ETH receipts
+    // We do this by checking the balance of the contract before and after the transfer, taking into account any WETH that has been released to payees
+    // Of course this means we don't know when WETH was received multiple times between two transfers occurring, but that's fine, it's just a rough estimate
+    WethStats memory stats = wethStats;
+    uint256 prevBalance = stats.latestWethBalance;
+    uint256 currentBalance = wethContract.balanceOf(address(this)) + totalReleased(wethContract);
+
+    if (currentBalance > prevBalance) {
+      stats.latestWethBalance = currentBalance.toUint192();
+      wethReceipts[stats.wethReceivedCount % HISTORY_LENGTH] = RoyaltyReceipt(
+        block.timestamp.toUint64(),
+        (currentBalance - prevBalance).toUint192()
+      );
+      stats.wethReceivedCount++;
+
+      wethStats = stats;
+    }
   }
 
   function claimBonusPlates(uint256 tokenId, uint8 milestone) external {
@@ -206,97 +268,6 @@ contract Gold is ERC721, PaymentSplitter, AccessControl, Ownable {
     }
   }
 
-  function numberOfBonusPlates(uint256 tokenId) public view returns (uint256) {
-    uint256 count = 0;
-    TokenData memory td = tokenData[tokenId];
-    if (td.held6MonthsClaimedBy != address(0)) count++;
-    if (td.held12MonthsClaimedBy != address(0)) count++;
-    if (td.held24MonthsClaimedBy != address(0)) count++;
-    if (td.held60MonthsClaimedBy != address(0)) count++;
-    if (td.held120MonthsClaimedBy != address(0)) count++;
-    if (td.held240MonthsClaimedBy != address(0)) count++;
-    return count;
-  }
-
-  function numberOfBonusClusters() external view returns (uint256) {
-    uint256 count = 0;
-    if (block.timestamp > 1703167200) count++; // Dec 21, 2023 (6m)
-    if (block.timestamp > 1718974800) count++; // Jun 21, 2024 (1y)
-    if (block.timestamp > 1750510800) count++; // Jun 21, 2025 (2y)
-    if (block.timestamp > 1845205200) count++; // Jun 21, 2028 (5y)
-    if (block.timestamp > 2002971600) count++; // Jun 21, 2033 (10y)
-    if (block.timestamp > 2318504400) count++; // Jun 21, 2043 (20y)
-    return count;
-  }
-
-  function mint(address to) public {
-    if (totalSupply >= MAX_SUPPLY) revert MaxSupplyReached();
-    // TODO: UNCOMMENT - if (_msgSender() != sale) revert NotAuthorized();
-
-    uint256 tokenId = totalSupply;
-    totalSupply++;
-    tokenData[tokenId].mintTimestamp = block.timestamp;
-    tokenData[tokenId].seed = keccak256(
-      abi.encodePacked(
-        blockhash(block.number - 1),
-        block.number,
-        block.timestamp,
-        _msgSender(),
-        tokenId
-      )
-    );
-    _safeMint(to, tokenId);
-  }
-
-  // TODO: Remove
-  function mintMany(address to, uint256 count) external {
-    for (uint256 i = 0; i < count; i++) {
-      this.mint(to);
-    }
-  }
-
-  function _afterTokenTransfer(
-    address from,
-    address,
-    uint256 tokenId,
-    uint256
-  ) internal override {
-    if (from == address(0)) {
-      return;
-    }
-
-    // Record latest transfer on contract
-    latestTransferTimestamps[transferCount % HISTORY_LENGTH] = block.timestamp;
-
-    // Record latest transfer on token. Unordered, to be sorted by timestamp off chain
-    tokenData[tokenId].latestTransferTimestamps[
-      tokenData[tokenId].transferCount % HISTORY_LENGTH
-    ] = block.timestamp;
-
-    // Increase transfer counts on token and contract. Important so that we can correctly write to history arrays in a loop
-    tokenData[tokenId].transferCount++;
-    transferCount++;
-
-    // Record WETH receipts, if any, attempting to match how we record native ETH receipts
-    // We do this by checking the balance of the contract before and after the transfer, taking into account any WETH that has been released to payees
-    // Of course this means we don't know when WETH was received multiple times between two transfers occurring, but that's fine, it's just a rough estimate
-    WethStats memory stats = wethStats;
-    uint256 prevBalance = stats.latestWethBalance;
-    uint256 currentBalance = wethContract.balanceOf(address(this)) +
-      totalReleased(wethContract);
-
-    if (currentBalance > prevBalance) {
-      stats.latestWethBalance = currentBalance.toUint192();
-      wethReceipts[stats.wethReceivedCount % HISTORY_LENGTH] = RoyaltyReceipt(
-        block.timestamp.toUint64(),
-        (currentBalance - prevBalance).toUint192()
-      );
-      stats.wethReceivedCount++;
-
-      wethStats = stats;
-    }
-  }
-
   function getContractMetrics()
     external
     view
@@ -307,7 +278,8 @@ contract Gold is ERC721, PaymentSplitter, AccessControl, Ownable {
       uint256[HISTORY_LENGTH] memory,
       uint256,
       RoyaltyReceipt[HISTORY_LENGTH] memory,
-      RoyaltyReceipt[HISTORY_LENGTH] memory
+      RoyaltyReceipt[HISTORY_LENGTH] memory,
+      uint256
     )
   {
     return (
@@ -317,38 +289,28 @@ contract Gold is ERC721, PaymentSplitter, AccessControl, Ownable {
       latestTransferTimestamps,
       getHolderCount(),
       ethReceipts,
-      wethReceipts
+      wethReceipts,
+      currentTokenId
     );
   }
 
   function getTokenMetrics(
     uint256 tokenId
-  )
-    external
-    view
-    returns (
-      uint256,
-      uint256[HISTORY_LENGTH] memory,
-      uint256,
-      bytes32,
-      uint256,
-      uint256
-    )
-  {
+  ) external view returns (uint256, uint256[HISTORY_LENGTH] memory, uint256, bytes32, uint256, uint256) {
     return (
       tokenData[tokenId].transferCount,
       tokenData[tokenId].latestTransferTimestamps,
       tokenData[tokenId].mintTimestamp,
       tokenData[tokenId].seed,
       balanceOf(ownerOf(tokenId)),
-      numberOfBonusPlates(tokenId)
+      goldRenderer.numberOfBonusPlates(tokenId)
     );
   }
 
   function getHolderCount() internal view returns (uint256) {
     uint256 count = 0;
-    address[MAX_SUPPLY] memory seen;
-    for (uint256 i = 0; i < totalSupply; i++) {
+    address[] memory seen = new address[](currentTokenId);
+    for (uint256 i = 0; i < currentTokenId; i++) {
       address owner = ownerOf(i);
       if (findElement(seen, owner) == false) {
         count++;
@@ -360,27 +322,17 @@ contract Gold is ERC721, PaymentSplitter, AccessControl, Ownable {
     return count;
   }
 
-  function latestTransferTimestamp(
-    TokenData memory _tokenData
-  ) internal pure returns (uint256) {
+  function latestTransferTimestamp(TokenData memory _tokenData) internal pure returns (uint256) {
     if (_tokenData.transferCount == 0) return _tokenData.mintTimestamp;
 
-    return
-      _tokenData.latestTransferTimestamps[
-        (_tokenData.transferCount - 1) % HISTORY_LENGTH
-      ];
+    return _tokenData.latestTransferTimestamps[(_tokenData.transferCount - 1) % HISTORY_LENGTH];
   }
 
-  function supportsInterface(
-    bytes4 interfaceId
-  ) public view override(ERC721, AccessControl) returns (bool) {
+  function supportsInterface(bytes4 interfaceId) public view override(ERC721, AccessControl) returns (bool) {
     return super.supportsInterface(interfaceId);
   }
 
-  function findElement(
-    address[MAX_SUPPLY] memory arr,
-    address element
-  ) internal pure returns (bool) {
+  function findElement(address[] memory arr, address element) internal pure returns (bool) {
     for (uint256 i = 0; i < arr.length; i++) {
       if (arr[i] == element) {
         return true;
@@ -410,9 +362,6 @@ contract Gold is ERC721, PaymentSplitter, AccessControl, Ownable {
   }
 
   function getSelectors() public pure returns (string memory, string memory) {
-    return (
-      fromCode(this.getContractMetrics.selector),
-      fromCode(this.getTokenMetrics.selector)
-    );
+    return (fromCode(this.getContractMetrics.selector), fromCode(this.getTokenMetrics.selector));
   }
 }

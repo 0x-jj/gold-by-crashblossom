@@ -82,39 +82,38 @@ let paths = [
   "ribbon",
   "wave",
   "footprint large",
+  "ice small",
 ];
 let layer_1_indexes = [
-  14, 40, 43, 2, 41, 34, 35, 37, 38, 39, 23, 11, 42, 36, 3,
+  11, 34, 35, 2, 37, 38, 39, 40, 41, 43, 14, 23, 36, 3, 42,
 ];
-let layer_1_probabilities = [
-  5, 5, 6, 7, 7, 10, 10, 10, 10, 10, 15, 15, 17, 18, 20,
-];
-let layer_2_indexes = [2, 7, 0, 5, 6, 1, 4, 3];
-let layer_2_probabilities = [7, 7, 8, 10, 10, 12, 15, 20];
+let layer_1_probabilities = [2, 4, 4, 4, 4, 4, 4, 4, 4, 4, 6, 11, 15, 15, 15];
+let layer_2_indexes = [0, 7, 2, 6, 5, 1, 3, 4];
+let layer_2_probabilities = [2, 7, 10, 10, 12, 14, 20, 25];
 let layer_3_indexes = [
-  54, 44, 48, 53, 6, 5, 7, 0, 52, 45, 1, 51, 46, 47, 49, 4, 10, 50, 13,
+  0, 54, 44, 45, 46, 48, 5, 53, 6, 7, 4, 51, 52, 47, 10, 50, 13, 1, 49,
 ];
 let layer_3_probabilities = [
-  4, 5, 6, 6, 6, 7, 7, 8, 10, 12, 12, 12, 14, 15, 15, 15, 20, 20, 20,
+  2, 2, 4, 4, 4, 4, 4, 4, 4, 4, 5, 5, 5, 7, 7, 7, 8, 10, 10,
 ];
-let layer_4_indexes = [12, 14, 8, 9, 15, 11, 16, 10, 13];
-let layer_4_probabilities = [4, 5, 10, 10, 10, 15, 15, 20, 20];
+let layer_4_indexes = [12, 8, 14, 9, 15, 11, 16, 13, 10];
+let layer_4_probabilities = [2, 4, 4, 10, 10, 15, 15, 18, 22];
 let layer_5_indexes = [
-  8, 66, 59, 60, 9, 63, 64, 15, 62, 55, 22, 16, 65, 56, 61, 57, 19, 26, 58,
+  59, 8, 55, 56, 57, 9, 58, 60, 15, 62, 63, 16, 64, 66, 19, 26, 22, 61, 65,
 ];
 let layer_5_probabilities = [
-  7, 7, 8, 9, 10, 10, 10, 11, 12, 15, 15, 15, 16, 18, 18, 20, 20, 20, 25,
+  2, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 10, 10, 10, 10, 10,
 ];
-let layer_6_indexes = [20, 21, 18, 17, 24, 22, 23, 19, 25];
-let layer_6_probabilities = [2, 3, 4, 10, 10, 15, 15, 20, 20];
+let layer_6_indexes = [20, 22, 18, 21, 17, 24, 80, 25, 19];
+let layer_6_probabilities = [2, 4, 5, 5, 8, 10, 15, 25, 26];
 let layer_7_indexes = [
-  71, 67, 17, 72, 24, 75, 78, 32, 70, 79, 69, 73, 77, 27, 76, 74, 68, 28, 30,
+  70, 30, 67, 32, 17, 71, 72, 24, 77, 78, 69, 73, 75, 74, 27, 76, 79, 68, 28,
 ];
 let layer_7_probabilities = [
-  6, 7, 7, 7, 9, 10, 10, 11, 12, 12, 13, 15, 15, 16, 16, 17, 18, 20, 20,
+  2, 2, 4, 4, 4, 4, 4, 4, 4, 4, 5, 5, 5, 6, 7, 7, 7, 10, 12,
 ];
-let layer_8_indexes = [27, 32, 26, 28, 30, 31, 29, 33];
-let layer_8_probabilities = [10, 10, 20, 20, 20, 20, 25, 27];
+let layer_8_indexes = [30, 29, 31, 32, 27, 28, 26, 33];
+let layer_8_probabilities = [2, 10, 10, 10, 12, 16, 20, 20];
 let hodl_layer_indexes = [
   6, 71, 5, 7, 8, 67, 17, 0, 59, 24, 52, 9, 64, 75, 78, 15, 32, 45, 1, 62, 70,
   69, 11, 49, 4, 22, 16, 73, 65, 27, 76, 74, 61, 68, 3, 10, 13, 19, 26, 28, 30,
@@ -265,7 +264,11 @@ function generateLayerPaths(seed) {
 
 function getAllTraits() {
   let token_seed_increment = 999;
-  let seed_token = 46451;
+  let seed_token = 799554;
+
+  // generate random seed and seed increment
+  // let token_seed_increment = Math.floor(1000 + Math.random() * 100);
+  // let seed_token = Math.floor(1000 + Math.random() * 999999);
 
   let seed = { current: seed_token, incrementor: token_seed_increment };
 
@@ -279,6 +282,23 @@ function getAllTraits() {
   console.log("number_of_colors_to_use:", number_of_colors_to_use);
   console.log("selected_color_palettes:", selected_color_palettes);
   console.log("layer_paths:", layer_paths);
+  // return layer_paths
 }
-
 getAllTraits();
+// The code below is used for testing the traits distribution
+
+// for (let layer_id = 0; layer_id < 8; layer_id ++){
+//   let results = {};
+//   for (let i = 0; i < 500; i++) {
+//     let t = getAllTraits();
+//     if (results[t[layer_id]] == undefined) {
+//       results[t[layer_id]] = 1;
+//     }
+//     else {
+//       results[t[layer_id]] ++;
+//     }
+//   }
+
+//   console.log("Layer:", layer_id);
+//   console.log(JSON.stringify(results, null, 2));
+// }

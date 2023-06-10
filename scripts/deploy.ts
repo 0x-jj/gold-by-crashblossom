@@ -38,9 +38,7 @@ async function storeScript(
 
   if (storedScript.owner === ethers.constants.AddressZero) {
     // First create the script in the storage contract
-    await waitIfNeeded(
-      await storageContract.createScript(name, utilities.stringToBytes(name))
-    );
+    await waitIfNeeded(await storageContract.createScript(name, utilities.stringToBytes(name)));
   }
 
   // Store each chunk
@@ -54,14 +52,7 @@ async function storeScript(
         network.name === "hardhat" ? { gasLimit: 30_000_000 } : undefined
       )
     );
-    console.log(
-      `${name} chunk #`,
-      i + 1,
-      "/",
-      scriptChunks.length,
-      "chunk length: ",
-      scriptChunks[i].length
-    );
+    console.log(`${name} chunk #`, i + 1, "/", scriptChunks.length, "chunk length: ", scriptChunks[i].length);
   }
   console.log(`${name} is stored`);
 }
@@ -69,6 +60,7 @@ async function storeScript(
 const DEV_SPLIT = 140; // 14%
 const ARTIST_SPLIT = 650; // 65 %
 const DAO_SPLIT = 210; // 21 %
+const SUPPLY = 500;
 
 async function main() {
   console.log("");
@@ -86,30 +78,13 @@ async function main() {
   const { scriptyStorageContract, scriptyBuilderContract, wethContract } =
     await utilities.deployOrGetContracts(network.name);
 
-  await storeScript(
-    scriptyStorageContract,
-    "gold_by_crashblossom_base_v5",
-    "scripts/goldBase.js"
-  );
+  await storeScript(scriptyStorageContract, "gold_by_crashblossom_base_v5", "scripts/goldBase.js");
 
-  await storeScript(
-    scriptyStorageContract,
-    "gold_by_crashblossom_paths_v5",
-    "scripts/paths.js",
-    true
-  );
+  await storeScript(scriptyStorageContract, "gold_by_crashblossom_paths_v5", "scripts/paths.js", true);
 
-  await storeScript(
-    scriptyStorageContract,
-    "gunzipScripts-0.0.1",
-    "scripts/gunzipScripts-0.0.1.js"
-  );
+  await storeScript(scriptyStorageContract, "gunzipScripts-0.0.1", "scripts/gunzipScripts-0.0.1.js");
 
-  await storeScript(
-    scriptyStorageContract,
-    "gold_by_crashblossom_main_v5",
-    "scripts/main.js"
-  );
+  await storeScript(scriptyStorageContract, "gold_by_crashblossom_main_v5", "scripts/main.js");
 
   const scriptRequests = [
     {
@@ -150,11 +125,10 @@ async function main() {
     },
   ];
 
-  const rawBufferSize =
-    await scriptyBuilderContract.getBufferSizeForHTMLWrapped(
-      // @ts-ignore
-      scriptRequests
-    );
+  const rawBufferSize = await scriptyBuilderContract.getBufferSizeForHTMLWrapped(
+    // @ts-ignore
+    scriptRequests
+  );
   console.log("Buffer size:", rawBufferSize);
 
   const renderer = await ethers.getContractFactory("GoldRenderer");
@@ -175,45 +149,29 @@ async function main() {
     [DEV_SPLIT, ARTIST_SPLIT, DAO_SPLIT],
     [dev.address, artist.address, dao.address],
     wethContract.address,
-    rendererContract.address
+    rendererContract.address,
+    SUPPLY
   );
   await nftContract.deployed();
   console.log("NFT Contract is deployed", nftContract.address);
 
-  // const sale = await ethers.getContractFactory("GoldDutchAuction");
-  // const saleContract = await sale.deploy(
-  //   [dev.address, artist.address, dao.address],
-  //   [DEV_SPLIT, ARTIST_SPLIT, DAO_SPLIT],
-  //   nftContract.address
-  // );
-  // console.log("Sale Contract is deployed", saleContract.address);
-
-  // await nftContract.setSaleAddress(saleContract.address);
   await rendererContract.setGoldContract(nftContract.address);
 
   await nftContract.mint(dev.address);
   console.log("Minted 1 NFT");
 
-  // const tokenURI = await nftContract.tokenURI(0);
-  // console.log("Got token URI");
-  // const tokenURIDecoded = utilities.parseBase64DataURI(tokenURI);
-  // console.log("Decoded token URI");
-  // const tokenURIJSONDecoded = JSON.parse(tokenURIDecoded);
-  // console.log("Parsed decoded token URI");
-  // const animationURL = utilities.parseBase64DataURI(
-  //   tokenURIJSONDecoded.animation_url
-  // );
-  // console.log("Parsed animation url");
+  const tokenURI = await nftContract.tokenURI(0);
+  console.log("Got token URI");
+  const tokenURIDecoded = utilities.parseBase64DataURI(tokenURI);
+  console.log("Decoded token URI");
+  const tokenURIJSONDecoded = JSON.parse(tokenURIDecoded);
+  console.log("Parsed decoded token URI");
+  const animationURL = utilities.parseBase64DataURI(tokenURIJSONDecoded.animation_url);
+  console.log("Parsed animation url");
 
-  // utilities.writeFile(path.join(__dirname, "output", "tokenURI.txt"), tokenURI);
-  // utilities.writeFile(
-  //   path.join(__dirname, "output", "output.html"),
-  //   animationURL
-  // );
-  // utilities.writeFile(
-  //   path.join(__dirname, "output", "metadata.json"),
-  //   tokenURIDecoded
-  // );
+  utilities.writeFile(path.join(__dirname, "output", "tokenURI.txt"), tokenURI);
+  utilities.writeFile(path.join(__dirname, "output", "output.html"), animationURL);
+  utilities.writeFile(path.join(__dirname, "output", "metadata.json"), tokenURIDecoded);
 
   // Verify contracts if network is goerli
   if (network.name == "goerli") {
@@ -228,6 +186,7 @@ async function main() {
         [dev.address, artist.address, dao.address],
         wethContract.address,
         rendererContract.address,
+        SUPPLY,
       ],
     });
   }
