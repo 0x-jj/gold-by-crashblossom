@@ -398,11 +398,11 @@ contract DutchAuction is IDutchAuction, AccessControl, Pausable, ReentrancyGuard
 
   /**
    * @dev Internal function for applying discounts.
-   * The function calculates the refund as the user's total contribution minus the amount spent on bidding.
-   * It then sends the refund (if any) to the user's account.
+   * The function returns the discounted final cost for the user, effectively increasing their rebate.
    * @param buyer Address of the user receiving the discount.
    * @param cost Total, non discounted cost for the user.
    * @param proof Merkle proof for the user's address and discount.
+   * @return discountedCost Discounted cost for the user.
    */
   function _applyDiscount(
     address buyer,
