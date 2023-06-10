@@ -274,7 +274,7 @@ contract DutchAuction is IDutchAuction, AccessControl, Pausable, ReentrancyGuard
   ) external payable nonReentrant whenNotPaused validConfig validTime {
     address requester = msg.sender;
 
-    if (vaultAddress != address(0) && vaultAddress != requester) {
+    if (vaultAddress != address(0) && vaultAddress != msg.sender) {
       bool isDelegateValid = delegateCash.checkDelegateForContract(
         msg.sender,
         vaultAddress,
