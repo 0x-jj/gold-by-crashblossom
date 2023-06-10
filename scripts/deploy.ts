@@ -150,7 +150,8 @@ async function main() {
     [dev.address, artist.address, dao.address],
     wethContract.address,
     rendererContract.address,
-    SUPPLY
+    SUPPLY,
+    "0x00000000000076A84feF008CDAbe6409d2FE638B"
   );
   await nftContract.deployed();
   console.log("NFT Contract is deployed", nftContract.address);
@@ -187,6 +188,7 @@ async function main() {
         wethContract.address,
         rendererContract.address,
         SUPPLY,
+        "0x00000000000076A84feF008CDAbe6409d2FE638B",
       ],
     });
   }

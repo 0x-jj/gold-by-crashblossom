@@ -80,7 +80,8 @@ describe("DutchAuction", function () {
       [admin.address],
       wethContract.address,
       contracts.rendererContract.address,
-      20
+      20,
+      "0x00000000000076A84feF008CDAbe6409d2FE638B"
     );
 
     const Auction = await ethers.getContractFactory("DutchAuction");

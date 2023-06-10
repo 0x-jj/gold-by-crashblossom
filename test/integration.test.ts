@@ -63,7 +63,8 @@ describe("Dutch auction integration tests", function () {
         [deployer.address],
         contracts.wethContract.address,
         contracts.rendererContract.address,
-        supply
+        supply,
+        "0x00000000000076A84feF008CDAbe6409d2FE638B"
       );
 
       merkleTree = contracts.merkleTree.tree;
