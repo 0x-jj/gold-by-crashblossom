@@ -58,6 +58,10 @@ interface IDutchAuction {
 
   /// @dev Emitted when the max supply is reached.
   error MaxSupplyReached();
+
+  /// @dev Emitted when the proof length is invalid when claiming users refunds.
+  error InvalidProofsLength();
+
   /// @dev Represents a user in the auction
 
   struct User {

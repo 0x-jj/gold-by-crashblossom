@@ -1,23 +1,3 @@
-// (@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
-// (@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
-// (@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ @@ (@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
-// (@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@&, @@@@@@@@@% .&@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
-// (@@@@@@@@@@@@@@@@@@@@@@@@@@@ /&@@@@@@ %@ @@&@@@@% @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
-// (@@@@@@@@@@@@@@@@@@@@@@@@@&    @@@&/      .&@@&.   @@@@@@@@@@@@@@@@@@@@@@@@@@@@@
-// (@@@@@@@@@@@@@@@@@@@@@@@@@&                        @@@@@@@@@@@@@@@@@@@@@@@@@@@@@
-// (@@@@@@@@@@@@@@@@@@@@@@@@@&                        &@@@@@@@@@@@@@@@@@@@@@@@@@@@@
-// (@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@    ,%@@@@&/    (&@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
-// (@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@&&&&@@@@@@@@@@@@@@
-// (@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@   @@@@@@@@@@@@@@
-// (&&&&&&&&&@&%@@&&@&&&@&@&&&&&&@%@@&@@@@@@@&@@@&@@@@@@@&@&@@@&@@   @@@@@@@@@@@@@@
-// (&&&&&&&&&           &@@            .@@*         *@@@&        .   @@@@@@@@@@@@@@
-// (&&&&&&&&   @&&&&#   %@&&&.   &@@@   %   .@@@@@,   @@   ,@@@@@.   @@@@@@@@@@@@@@
-// (&&&&&&&@   %&&&&@   %&&&&.  .@@@@@@&@   @@@@@@@   @&   @@@@@@&   @@@@@@@@@@@@@@
-// (&&&&&&&&,    @%      &&        &&@@@@@    /@*    @@@@    (@/     @@@.    @@@@@@
-// (&&&&&&&&&&(    ,&@   @&        &&@@@@@@&*     *&@@@@@@&     @@   @@@&   @@@@@@@
-// /%&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&@@@@@@@@@@@@@@@@@@@@@@@&&@@@@@@@@@@@@@@@@@
-// /%%%%%%%%%&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&@@@@@@@@@@@@
-
 /**
  * @title Dutch Auction Contract
  * @author arod.studio and Fingerprints DAO
@@ -31,6 +11,10 @@
  * Security features like reentrancy guard, overflow/underflow checks,
  * and signature verification are included.
  *
+ * NOTE: The original contract has been modified to support merkle tree based discounts
+ * in the form of increasing the amount that a user eligible for a discount is refunded.
+ *
+ *
  * SPDX-License-Identifier: MIT
  */
 pragma solidity ^0.8.17;
@@ -39,6 +23,7 @@ import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 import "@openzeppelin/contracts/access/AccessControl.sol";
 import "@openzeppelin/contracts/security/Pausable.sol";
 import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
+import "@openzeppelin/contracts/utils/cryptography/MerkleProof.sol";
 
 import "./IDutchAuction.sol";
 import "./INFT.sol";
@@ -82,6 +67,9 @@ contract DutchAuction is IDutchAuction, AccessControl, Pausable, ReentrancyGuard
   /// @dev Mapping of user address to nonce
   mapping(address => uint256) private _nonces;
 
+  /// @dev Merkle root holding allowed discount addresses
+  bytes32 public discountMerkleRoot;
+
   modifier validConfig() {
     if (_config.startTime == 0) revert ConfigNotSet();
     _;
@@ -98,10 +86,17 @@ contract DutchAuction is IDutchAuction, AccessControl, Pausable, ReentrancyGuard
   /// @param _nftAddress NFT contract address
   /// @param _signerAddress Signer address
   /// @param _treasuryAddress Treasury address
-  constructor(address _nftAddress, address _signerAddress, address _treasuryAddress) {
+  /// @param _discountMerkleRoot Merkle root for discounts
+  constructor(
+    address _nftAddress,
+    address _signerAddress,
+    address _treasuryAddress,
+    bytes32 _discountMerkleRoot
+  ) {
     nftContractAddress = INFT(_nftAddress);
     signerAddress = _signerAddress;
     treasuryAddress = _treasuryAddress;
+    discountMerkleRoot = _discountMerkleRoot;
 
     _setupRole(DEFAULT_ADMIN_ROLE, msg.sender);
 
@@ -372,11 +367,11 @@ contract DutchAuction is IDutchAuction, AccessControl, Pausable, ReentrancyGuard
    * This function can only be called after the refund delay time has passed post-auction end.
    * Note: If the function reverts with 'ClaimRefundNotReady', it means the refund delay time has not passed yet.
    */
-  function claimRefund() external nonReentrant whenNotPaused validConfig {
+  function claimRefund(bytes32[] calldata proof) external nonReentrant whenNotPaused validConfig {
     Config memory config = _config;
     if (config.endTime + config.refundDelayTime >= block.timestamp) revert ClaimRefundNotReady();
 
-    _claimRefund(msg.sender);
+    _claimRefund(msg.sender, proof);
   }
 
   /**
@@ -388,15 +383,48 @@ contract DutchAuction is IDutchAuction, AccessControl, Pausable, ReentrancyGuard
    * @param accounts An array of addresses for which refunds will be claimed.
    */
   function refundUsers(
-    address[] memory accounts
+    address[] memory accounts,
+    bytes32[][] calldata proofs
   ) external nonReentrant whenNotPaused validConfig onlyRole(DEFAULT_ADMIN_ROLE) {
+    if (accounts.length != proofs.length) revert InvalidProofsLength();
     Config memory config = _config;
     if (config.endTime + config.refundDelayTime >= block.timestamp) revert ClaimRefundNotReady();
 
     uint256 length = accounts.length;
     for (uint256 i; i != length; ++i) {
-      _claimRefund(accounts[i]);
+      _claimRefund(accounts[i], proofs[i]);
     }
+  }
+
+  /**
+   * @dev Internal function for applying discounts.
+   * The function calculates the refund as the user's total contribution minus the amount spent on bidding.
+   * It then sends the refund (if any) to the user's account.
+   * @param buyer Address of the user receiving the discount.
+   * @param cost Total, non discounted cost for the user.
+   * @param proof Merkle proof for the user's address and discount.
+   */
+  function _applyDiscount(
+    address buyer,
+    uint256 cost,
+    bytes32[] calldata proof
+  ) internal view returns (uint256) {
+    require(discountMerkleRoot != bytes32(0), "Merkle root not set");
+
+    uint256 discountedCost = cost;
+
+    uint16[4] memory discountBps = [2500, 2250, 2000, 1000];
+
+    for (uint256 i = 0; i < discountBps.length; i++) {
+      bytes32 leaf = keccak256(abi.encodePacked(buyer, discountBps[i]));
+      if (MerkleProof.verify(proof, discountMerkleRoot, leaf)) {
+        uint256 discount = (cost * discountBps[i]) / 10000;
+        discountedCost = cost - discount;
+        break;
+      }
+    }
+
+    return discountedCost;
   }
 
   /**
@@ -406,11 +434,12 @@ contract DutchAuction is IDutchAuction, AccessControl, Pausable, ReentrancyGuard
    * Note: If the function reverts with 'UserAlreadyClaimed', it means the user has already claimed their refund.
    * @param account Address of the user claiming the refund.
    */
-  function _claimRefund(address account) internal {
+  function _claimRefund(address account, bytes32[] calldata proof) internal {
     User storage user = _userData[account];
     if (user.refundClaimed) revert UserAlreadyClaimed();
     user.refundClaimed = true;
-    uint256 refundInWei = user.contribution - (_settledPriceInWei * user.tokensBidded);
+    uint256 refundInWei = user.contribution -
+      _applyDiscount(account, (_settledPriceInWei * user.tokensBidded), proof);
     if (refundInWei > 0) {
       (bool success, ) = account.call{value: refundInWei}("");
       if (!success) revert TransferFailed();

@@ -7,6 +7,7 @@ import { increaseTime } from "./helpers/time";
 import { DutchAuction, Gold } from "../typechain-types";
 import { BigNumber } from "ethers";
 import { deployContracts } from "./utils";
+import MerkleTree from "merkletreejs";
 
 const toWei = ethers.utils.parseEther;
 
@@ -34,6 +35,7 @@ describe("DutchAuction", function () {
   let startTime: number;
   let endTime: number;
   let snapshotId: number;
+  let merkleTree: MerkleTree;
 
   const getSignature = async (account: string, deadline: number, qty: number) => {
     const nonce = await auction.getNonce(account);
@@ -70,7 +72,7 @@ describe("DutchAuction", function () {
     const contracts = await deployContracts();
     nft = contracts.nftContract;
     const wethContract = contracts.wethContract;
-
+    merkleTree = contracts.merkleTree.tree;
     const GoldContract = await ethers.getContractFactory("Gold");
     nft = await GoldContract.deploy(
       [admin.address, alice.address, bob.address],
@@ -82,7 +84,7 @@ describe("DutchAuction", function () {
     );
 
     const Auction = await ethers.getContractFactory("DutchAuction");
-    auction = await Auction.deploy(nft.address, signer.address, treasury.address);
+    auction = await Auction.deploy(nft.address, signer.address, treasury.address, contracts.merkleTree.root);
 
     await nft.connect(admin).setMinterAddress(auction.address);
 
@@ -541,10 +543,9 @@ describe("DutchAuction", function () {
 
   describe("Claim Refund", () => {
     it("should fail to claim refund when config is not set", async () => {
-      await expect(auction.connect(alice).claimRefund()).to.be.revertedWithCustomError(
-        auction,
-        "ConfigNotSet"
-      );
+      await expect(
+        auction.connect(alice).claimRefund(merkleTree.getHexProof(alice.address))
+      ).to.be.revertedWithCustomError(auction, "ConfigNotSet");
     });
 
     describe("When config is set", () => {
@@ -566,14 +567,15 @@ describe("DutchAuction", function () {
 
       it("should fail to claim refund when paused", async () => {
         await auction.connect(admin).pause();
-        await expect(auction.connect(alice).claimRefund()).to.be.revertedWith("Pausable: paused");
+        await expect(
+          auction.connect(alice).claimRefund(merkleTree.getHexProof(admin.address))
+        ).to.be.revertedWith("Pausable: paused");
       });
 
       it("should fail to claim refund before the auction is ended", async () => {
-        await expect(auction.connect(alice).claimRefund()).to.be.revertedWithCustomError(
-          auction,
-          "ClaimRefundNotReady"
-        );
+        await expect(
+          auction.connect(alice).claimRefund(merkleTree.getHexProof(alice.address))
+        ).to.be.revertedWithCustomError(auction, "ClaimRefundNotReady");
       });
 
       it("should claim refund after the auction is ended and refundDelayTime passed", async () => {
@@ -581,8 +583,8 @@ describe("DutchAuction", function () {
 
         const beforeAliceBalance = await ethers.provider.getBalance(alice.address);
         const beforeBobBalance = await ethers.provider.getBalance(bob.address);
-        const tx1 = await auction.connect(alice).claimRefund();
-        await auction.connect(bob).claimRefund();
+        const tx1 = await auction.connect(alice).claimRefund(merkleTree.getHexProof(alice.address));
+        await auction.connect(bob).claimRefund(merkleTree.getHexProof(bob.address));
         await expect(tx1).to.emit(auction, "ClaimRefund");
         const afterAliceBalance = await ethers.provider.getBalance(alice.address);
         const afterBobBalance = await ethers.provider.getBalance(bob.address);
@@ -596,17 +598,15 @@ describe("DutchAuction", function () {
       it("should fail to claim refund twice", async () => {
         await increaseTime(3600 * 2 + 30 * 60);
 
-        await auction.connect(alice).claimRefund();
-        await auction.connect(bob).claimRefund();
+        await auction.connect(alice).claimRefund(merkleTree.getHexProof(alice.address));
+        await auction.connect(bob).claimRefund(merkleTree.getHexProof(bob.address));
 
-        await expect(auction.connect(alice).claimRefund()).to.be.revertedWithCustomError(
-          auction,
-          "UserAlreadyClaimed"
-        );
-        await expect(auction.connect(bob).claimRefund()).to.be.revertedWithCustomError(
-          auction,
-          "UserAlreadyClaimed"
-        );
+        await expect(
+          auction.connect(alice).claimRefund(merkleTree.getHexProof(alice.address))
+        ).to.be.revertedWithCustomError(auction, "UserAlreadyClaimed");
+        await expect(
+          auction.connect(bob).claimRefund(merkleTree.getHexProof(bob.address))
+        ).to.be.revertedWithCustomError(auction, "UserAlreadyClaimed");
       });
     });
   });
@@ -614,7 +614,12 @@ describe("DutchAuction", function () {
   describe("Admin Refund Users", () => {
     it("should fail to claim refund when config is not set", async () => {
       await expect(
-        auction.connect(admin).refundUsers([alice.address, bob.address])
+        auction
+          .connect(admin)
+          .refundUsers(
+            [alice.address, bob.address],
+            [merkleTree.getHexProof(alice.address), merkleTree.getHexProof(bob.address)]
+          )
       ).to.be.revertedWithCustomError(auction, "ConfigNotSet");
     });
 
@@ -636,21 +641,33 @@ describe("DutchAuction", function () {
       });
 
       it("should fail to refund users as non-admin", async () => {
-        await expect(auction.connect(alice).refundUsers([bob.address])).to.be.revertedWith(
+        await expect(
+          auction.connect(alice).refundUsers([bob.address], [merkleTree.getHexProof(bob.address)])
+        ).to.be.revertedWith(
           `AccessControl: account ${alice.address.toLowerCase()} is missing role ${defaultAdminRole}`
         );
       });
 
       it("should fail to refund users when paused", async () => {
         await auction.connect(admin).pause();
-        await expect(auction.connect(admin).refundUsers([alice.address, bob.address])).to.be.revertedWith(
-          "Pausable: paused"
-        );
+        await expect(
+          auction
+            .connect(admin)
+            .refundUsers(
+              [alice.address, bob.address],
+              [merkleTree.getHexProof(alice.address), merkleTree.getHexProof(bob.address)]
+            )
+        ).to.be.revertedWith("Pausable: paused");
       });
 
       it("should fail to refund users before the auction is ended", async () => {
         await expect(
-          auction.connect(admin).refundUsers([alice.address, bob.address])
+          auction
+            .connect(admin)
+            .refundUsers(
+              [alice.address, bob.address],
+              [merkleTree.getHexProof(alice.address), merkleTree.getHexProof(bob.address)]
+            )
         ).to.be.revertedWithCustomError(auction, "ClaimRefundNotReady");
       });
 
@@ -659,7 +676,12 @@ describe("DutchAuction", function () {
 
         const beforeAliceBalance = await ethers.provider.getBalance(alice.address);
         const beforeBobBalance = await ethers.provider.getBalance(bob.address);
-        const tx = await auction.connect(admin).refundUsers([alice.address, bob.address]);
+        const tx = await auction
+          .connect(admin)
+          .refundUsers(
+            [alice.address, bob.address],
+            [merkleTree.getHexProof(alice.address), merkleTree.getHexProof(bob.address)]
+          );
         await expect(tx).to.emit(auction, "ClaimRefund");
         const afterAliceBalance = await ethers.provider.getBalance(alice.address);
         const afterBobBalance = await ethers.provider.getBalance(bob.address);
@@ -673,10 +695,20 @@ describe("DutchAuction", function () {
       it("should fail to refund users twice", async () => {
         await increaseTime(3600 * 2 + 30 * 60);
 
-        await auction.connect(admin).refundUsers([alice.address, bob.address]);
+        await auction
+          .connect(admin)
+          .refundUsers(
+            [alice.address, bob.address],
+            [merkleTree.getHexProof(alice.address), merkleTree.getHexProof(bob.address)]
+          );
 
         await expect(
-          auction.connect(admin).refundUsers([alice.address, bob.address])
+          auction
+            .connect(admin)
+            .refundUsers(
+              [alice.address, bob.address],
+              [merkleTree.getHexProof(alice.address), merkleTree.getHexProof(bob.address)]
+            )
         ).to.be.revertedWithCustomError(auction, "UserAlreadyClaimed");
       });
     });
@@ -725,7 +757,12 @@ describe("DutchAuction", function () {
 
     it("should have 0 eth after withdraw funds and refund users", async () => {
       await increaseTime(3600 * 2 + 30 * 60);
-      const tx = await auction.connect(admin).refundUsers([alice.address, bob.address]);
+      const tx = await auction
+        .connect(admin)
+        .refundUsers(
+          [alice.address, bob.address],
+          [merkleTree.getHexProof(alice.address), merkleTree.getHexProof(bob.address)]
+        );
       await expect(tx).to.emit(auction, "ClaimRefund");
 
       await auction.connect(admin).withdrawFunds();

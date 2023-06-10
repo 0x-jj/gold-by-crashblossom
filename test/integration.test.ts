@@ -10,6 +10,7 @@ import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/signers";
 import { signBid } from "./helpers/sign";
 import { DutchAuction } from "../typechain-types";
 import { deployContracts } from "./utils";
+import MerkleTree from "merkletreejs";
 
 const DEV_SPLIT = 140; // 14%
 const ARTIST_SPLIT = 650; // 65 %
@@ -51,6 +52,7 @@ const getSignature = async (auction: DutchAuction, account: string, deadline: nu
 };
 
 describe.only("Dutch auction integration tests", function () {
+  let merkleTree: MerkleTree;
   // We define a fixture to reuse the same setup in every test.
   // We use loadFixture to run this setup once, snapshot that state,
   // and reset Hardhat Network to that snapshot in every test.
@@ -70,8 +72,15 @@ describe.only("Dutch auction integration tests", function () {
         supply
       );
 
+      merkleTree = contracts.merkleTree.tree;
+
       const Auction = await ethers.getContractFactory("DutchAuction");
-      const auction = await Auction.deploy(nft.address, signer.address, treasury.address);
+      const auction = await Auction.deploy(
+        nft.address,
+        signer.address,
+        treasury.address,
+        contracts.merkleTree.root
+      );
 
       await nft.setMinterAddress(auction.address);
 
@@ -117,9 +126,9 @@ describe.only("Dutch auction integration tests", function () {
         value: startAmount.mul(aliceQty + 2),
       });
 
-      await expect(auction.connect(marcia).claimRefund()).to.reverted;
+      await expect(auction.connect(marcia).claimRefund(merkleTree.getHexProof(marcia.address))).to.reverted;
     });
-    it("fails when sold out and try to withdraw funds", async function () {
+    it("fails when sold out and try to withdraw funds if sale not ended", async function () {
       const { deployer, alice, auction } = await loadFixture(callFixture(3));
       const deadline = Math.floor(Date.now() / 1000) + 1000;
 
