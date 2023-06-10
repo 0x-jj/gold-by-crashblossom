@@ -1,7 +1,8 @@
 import { BigNumber, BigNumberish } from "ethers";
-import { ethers } from "hardhat";
 import { MerkleTree } from "merkletreejs";
 import keccak256 from "keccak256";
+import { ethers, network } from "hardhat";
+import { deployOrGetContracts } from "../scripts/utils";
 
 export async function timeTravel(duration: BigNumberish) {
   if (!BigNumber.isBigNumber(duration)) {
@@ -27,9 +28,7 @@ export function getMerkleRoot(addresses: string[]) {
   return { tree, root: tree.getHexRoot() };
 }
 
-export function getMerkleRootWithDiscounts(
-  addresses: {address: string, discountBps: number}[],
-) {
+export function getMerkleRootWithDiscounts(addresses: { address: string; discountBps: number }[]) {
   const hashes = addresses.map((data) =>
     ethers.utils.solidityKeccak256(
       ["address", "uint16"],
@@ -46,4 +45,54 @@ export function getMerkleRootWithDiscounts(
 
 export function getStringOfNKilobytes(n: number) {
   return "0".repeat(n * 1024);
+}
+
+const toWei = ethers.utils.parseEther;
+
+const START_PRICE = toWei("1.4");
+const RESERVED_MINTS = 3;
+const MAX_SUPPLY = 10;
+
+const DEV_SPLIT = 140; // 14%
+const ARTIST_SPLIT = 650; // 65 %
+const DAO_SPLIT = 210; // 21 %
+
+export async function deployContracts() {
+  const { scriptyStorageContract, scriptyBuilderContract, wethContract } = await deployOrGetContracts(
+    network.name
+  );
+
+  const [dev, artist, dao] = await ethers.getSigners();
+
+  await wethContract.mint(dev.address, toWei("1000"));
+
+  const renderer = await ethers.getContractFactory("GoldRenderer");
+  const rendererContract = await renderer.deploy(
+    [dev.address, artist.address, dao.address],
+    scriptyBuilderContract.address,
+    scriptyStorageContract.address,
+    210000,
+    "https://arweave.net/gold/"
+  );
+  await rendererContract.deployed();
+  console.log("Renderer Contract is deployed", rendererContract.address);
+
+  const nftContract = await (
+    await ethers.getContractFactory("Gold")
+  ).deploy(
+    [dev.address, artist.address, dao.address],
+    [DEV_SPLIT, ARTIST_SPLIT, DAO_SPLIT],
+    [dev.address, artist.address, dao.address],
+    wethContract.address,
+    rendererContract.address,
+    20
+  );
+  await nftContract.deployed();
+  console.log("NFT Contract is deployed", nftContract.address);
+
+  rendererContract.setGoldContract(nftContract.address);
+
+  const merkleTree = getMerkleRootWithDiscounts([{ address: dev.address, discountBps: 2000 }]);
+
+  return { nftContract, rendererContract, wethContract, merkleTree };
 }

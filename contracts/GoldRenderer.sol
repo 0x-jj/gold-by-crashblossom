@@ -19,7 +19,7 @@ interface IGoldContract {
   // Mapping from token ID to token data
   function tokenData(
     uint256 tokenId
-  ) external view returns (uint256, uint256, bytes32);
+  ) external view returns (uint256, uint256, bytes32, address, address, address, address, address, address);
 
   function getSelectors() external view returns (string memory, string memory);
 
@@ -42,6 +42,13 @@ contract GoldRenderer is AccessControl {
   uint256 private bufferSize;
 
   string public baseImageURI;
+
+  string private node1;
+  string private node2;
+  string private node3;
+  string private node4;
+
+  uint256 private royaltyPct = 5;
 
   struct Seed {
     uint256 current;
@@ -71,25 +78,70 @@ contract GoldRenderer is AccessControl {
     baseImageURI = baseImageURI_;
   }
 
-  function setGoldContract(
-    address _goldContract
-  ) public onlyRole(DEFAULT_ADMIN_ROLE) {
+  function setGoldContract(address _goldContract) public onlyRole(DEFAULT_ADMIN_ROLE) {
     goldContract = IGoldContract(_goldContract);
   }
 
-  function setBaseImageURI(
-    string calldata uri
-  ) public onlyRole(DEFAULT_ADMIN_ROLE) {
+  function setBaseImageURI(string calldata uri) public onlyRole(DEFAULT_ADMIN_ROLE) {
     baseImageURI = uri;
   }
 
-  function getSeedVariables(
-    uint256 tokenId
-  ) internal view returns (uint256, uint256) {
-    (, , bytes32 seed) = goldContract.tokenData(tokenId);
+  function setRoyaltyPct(uint256 pct) public onlyRole(DEFAULT_ADMIN_ROLE) {
+    royaltyPct = pct;
+  }
+
+  function setNode(uint256 n, string calldata uri) public onlyRole(DEFAULT_ADMIN_ROLE) {
+    if (n == 1) {
+      node1 = uri;
+    } else if (n == 2) {
+      node2 = uri;
+    } else if (n == 3) {
+      node3 = uri;
+    } else if (n == 4) {
+      node4 = uri;
+    } else {
+      revert("Invalid node");
+    }
+  }
+
+  function getSeedVariables(uint256 tokenId) internal view returns (uint256, uint256) {
+    (, , bytes32 seed, , , , , , ) = goldContract.tokenData(tokenId);
     uint256 seedToken = uint256(seed) % (10 ** 6);
     uint256 tokenSeedIncrement = 999 + tokenId;
     return (seedToken, tokenSeedIncrement);
+  }
+
+  function numberOfBonusPlates(uint256 tokenId) public view returns (uint256) {
+    uint256 count = 0;
+    (
+      ,
+      ,
+      ,
+      address held6MonthsClaimedBy,
+      address held12MonthsClaimedBy,
+      address held24MonthsClaimedBy,
+      address held60MonthsClaimedBy,
+      address held120MonthsClaimedBy,
+      address held240MonthsClaimedBy
+    ) = goldContract.tokenData(tokenId);
+    if (held6MonthsClaimedBy != address(0)) count++;
+    if (held12MonthsClaimedBy != address(0)) count++;
+    if (held24MonthsClaimedBy != address(0)) count++;
+    if (held60MonthsClaimedBy != address(0)) count++;
+    if (held120MonthsClaimedBy != address(0)) count++;
+    if (held240MonthsClaimedBy != address(0)) count++;
+    return count;
+  }
+
+  function numberOfBonusClusters() public view returns (uint256) {
+    uint256 count = 0;
+    if (block.timestamp > 1703167200) count++; // Dec 21, 2023 (6m)
+    if (block.timestamp > 1718974800) count++; // Jun 21, 2024 (1y)
+    if (block.timestamp > 1750510800) count++; // Jun 21, 2025 (2y)
+    if (block.timestamp > 1845205200) count++; // Jun 21, 2028 (5y)
+    if (block.timestamp > 2002971600) count++; // Jun 21, 2033 (10y)
+    if (block.timestamp > 2318504400) count++; // Jun 21, 2043 (20y)
+    return count;
   }
 
   function getMetadataObject(
@@ -97,6 +149,7 @@ contract GoldRenderer is AccessControl {
     uint256 tokenId
   ) internal view returns (bytes memory) {
     string memory tid = toString(tokenId);
+
     return
       abi.encodePacked(
         '{"name":"TEST #',
@@ -116,14 +169,70 @@ contract GoldRenderer is AccessControl {
       );
   }
 
+  enum VariableType {
+    STRING,
+    NUMBER
+  }
+
+  function constructJsScalarVar(
+    VariableType varType,
+    string memory name,
+    string memory value
+  ) internal pure returns (string memory) {
+    if (varType == VariableType.STRING) {
+      return string(abi.encodePacked("let ", name, ' = "', value, '";'));
+    } else if (varType == VariableType.NUMBER) {
+      return string(abi.encodePacked("let ", name, " = ", value, ";"));
+    } else {
+      revert("Invalid varType");
+    }
+  }
+
+  function constructJsArrayVar(
+    string memory name,
+    string[4] memory values
+  ) internal pure returns (string memory) {
+    string memory elements;
+    for (uint256 i = 0; i < values.length; i++) {
+      elements = string(abi.encodePacked(elements, '"', values[i], '"'));
+      if (i < values.length - 1) {
+        elements = string(abi.encodePacked(elements, ","));
+      }
+    }
+    return string(abi.encodePacked("let ", name, " = [", elements, "];"));
+  }
+
+  function getConstantsScript(
+    string memory contractAddy,
+    string memory contractMetricsSelector,
+    string memory tokenMetricsSelector,
+    string memory baseTimestamp,
+    string memory royaltyPercent,
+    string memory tokenId,
+    string memory seedToken,
+    string memory seedIncrement,
+    string[4] memory nodes
+  ) internal pure returns (bytes memory) {
+    return
+      abi.encodePacked(
+        constructJsScalarVar(VariableType.STRING, "w", contractAddy),
+        constructJsScalarVar(VariableType.STRING, "L", contractMetricsSelector),
+        constructJsScalarVar(VariableType.STRING, "M", tokenMetricsSelector),
+        constructJsScalarVar(VariableType.NUMBER, "$", baseTimestamp),
+        constructJsScalarVar(VariableType.NUMBER, "O", royaltyPercent),
+        constructJsScalarVar(VariableType.NUMBER, "P", tokenId),
+        constructJsScalarVar(VariableType.STRING, "h", seedToken),
+        constructJsScalarVar(VariableType.STRING, "s", seedIncrement),
+        constructJsArrayVar("arr", nodes)
+      );
+  }
+
   function tokenURI(uint256 tokenId) external view returns (string memory) {
     WrappedScriptRequest[] memory requests = new WrappedScriptRequest[](5);
 
     (uint256 seedToken, uint256 tokenSeedIncrement) = getSeedVariables(tokenId);
-    (
-      string memory contractMetricsSelector,
-      string memory tokenMetricsSelector
-    ) = goldContract.getSelectors();
+
+    (string memory contractMetricsSelector, string memory tokenMetricsSelector) = goldContract.getSelectors();
 
     uint256 baseTimestamp = goldContract.baseTimestamp();
 
@@ -132,32 +241,16 @@ contract GoldRenderer is AccessControl {
     requests[0].contractAddress = scriptyStorageAddress;
 
     requests[1].wrapType = 0; // <script>[script]</script>
-    requests[1].scriptContent = abi.encodePacked(
-      'let w = "',
+    requests[1].scriptContent = getConstantsScript(
       Strings.toHexString(address(goldContract)),
-      '";',
-      'let L = "',
       contractMetricsSelector,
-      '";',
-      'let M = "',
       tokenMetricsSelector,
-      '";',
-      "let $ = ",
       toString(baseTimestamp),
-      ";",
-      "let F = ",
-      toString(goldContract.totalSupply()),
-      ";",
-      "let O = 5;",
-      "let P = ",
+      toString(royaltyPct),
       toString(tokenId),
-      ";",
-      "let h = ",
       toString(seedToken),
-      ";",
-      "let s = ",
       toString(tokenSeedIncrement),
-      ";"
+      [node1, node2, node3, node4]
     );
 
     requests[2].name = "gold_by_crashblossom_paths_v5";
@@ -172,12 +265,10 @@ contract GoldRenderer is AccessControl {
     requests[4].wrapType = 0; // <script>[script]</script>
     requests[4].contractAddress = scriptyStorageAddress;
 
-    bytes memory base64EncodedHTMLDataURI = IScriptyBuilder(
-      scriptyBuilderAddress
-    ).getEncodedHTMLWrapped(
-        requests,
-        bufferSize + requests[1].scriptContent.length + 17 // "<script>".length + "</script>".length = 17
-      );
+    bytes memory base64EncodedHTMLDataURI = IScriptyBuilder(scriptyBuilderAddress).getEncodedHTMLWrapped(
+      requests,
+      bufferSize + requests[1].scriptContent.length + 17 // "<script>".length + "</script>".length = 17
+    );
 
     return
       string(
@@ -188,29 +279,19 @@ contract GoldRenderer is AccessControl {
       );
   }
 
-  function getJSONAttributes(
-    Trait[] memory allTraits
-  ) internal pure returns (string memory) {
+  function getJSONAttributes(Trait[] memory allTraits) internal pure returns (string memory) {
     string memory attributes;
     uint256 i;
     uint256 length = allTraits.length;
     unchecked {
       do {
-        attributes = string(
-          abi.encodePacked(
-            attributes,
-            getJSONTraitItem(allTraits[i], i == length - 1)
-          )
-        );
+        attributes = string(abi.encodePacked(attributes, getJSONTraitItem(allTraits[i], i == length - 1)));
       } while (++i < length);
     }
     return attributes;
   }
 
-  function getJSONTraitItem(
-    Trait memory trait,
-    bool lastItem
-  ) internal pure returns (string memory) {
+  function getJSONTraitItem(Trait memory trait, bool lastItem) internal pure returns (string memory) {
     return
       string(
         abi.encodePacked(
@@ -229,9 +310,7 @@ contract GoldRenderer is AccessControl {
     return seed.current % 101;
   }
 
-  function generateNumberOfColours(
-    Seed memory seed
-  ) public view returns (uint256) {
+  function generateNumberOfColours(Seed memory seed) public view returns (uint256) {
     for (uint256 j = 0; j < 300; j++) {
       for (uint256 i = 0; i < _number_of_colors.length; i++) {
         uint256 r = nextInt(seed);
@@ -257,9 +336,7 @@ contract GoldRenderer is AccessControl {
         for (uint256 j = 0; j < color_chance.length; j++) {
           c = color_names[j];
           uint256 r = nextInt(seed);
-          if (
-            r > 100 - color_chance[j] && !findElement(selectedColorNames, c)
-          ) {
+          if (r > 100 - color_chance[j] && !findElement(selectedColorNames, c)) {
             while_loop_breaker = 0;
             break;
           }
@@ -271,9 +348,7 @@ contract GoldRenderer is AccessControl {
     return selectedColorNames;
   }
 
-  function generateLayerPaths(
-    Seed memory seed
-  ) public view returns (string[] memory) {
+  function generateLayerPaths(Seed memory seed) public view returns (string[] memory) {
     string[] memory selected_layer_paths = new string[](24);
     uint8[3] memory types = [0, 1, 2];
 
@@ -322,10 +397,7 @@ contract GoldRenderer is AccessControl {
           for (uint256 i2 = 0; i2 < _probabilities.length; i2++) {
             uint256 r = nextInt(seed);
             p = paths[_indexes[i2]];
-            if (
-              r > 100 - _probabilities[i2] &&
-              !findElement(selected_layer_paths, p)
-            ) {
+            if (r > 100 - _probabilities[i2] && !findElement(selected_layer_paths, p)) {
               while_loop_breaker = 0;
               break;
             }
@@ -338,24 +410,16 @@ contract GoldRenderer is AccessControl {
     return selected_layer_paths;
   }
 
-  function generateAllTraits(
-    uint256 tokenId
-  ) public view returns (Trait[] memory) {
+  function generateAllTraits(uint256 tokenId) public view returns (Trait[] memory) {
     (uint256 tokenSeed, uint256 tokenSeedIncrement) = getSeedVariables(tokenId);
 
-    uint256 bonusPlateCount = goldContract.numberOfBonusPlates(tokenId);
-    uint256 bonusClusterCount = goldContract.numberOfBonusClusters();
+    uint256 bonusPlateCount = numberOfBonusPlates(tokenId);
+    uint256 bonusClusterCount = numberOfBonusClusters();
 
-    Seed memory seed = Seed({
-      current: tokenSeed,
-      incrementor: tokenSeedIncrement
-    });
+    Seed memory seed = Seed({current: tokenSeed, incrementor: tokenSeedIncrement});
 
     uint256 numberOfColours = generateNumberOfColours(seed);
-    string[] memory selectedColours = generateColourNames(
-      numberOfColours,
-      seed
-    );
+    string[] memory selectedColours = generateColourNames(numberOfColours, seed);
     string[] memory layerPaths = generateLayerPaths(seed);
 
     Trait[] memory allTraits = new Trait[](
@@ -364,20 +428,14 @@ contract GoldRenderer is AccessControl {
 
     uint256 currentIndex = 0;
 
-    allTraits[currentIndex] = Trait({
-      typeName: "Palette Count",
-      valueName: toString(numberOfColours)
-    });
+    allTraits[currentIndex] = Trait({typeName: "Palette Count", valueName: toString(numberOfColours)});
 
     currentIndex++;
 
     for (uint256 i = 0; i < 8; i++) {
       allTraits[currentIndex] = Trait({
         typeName: string(
-          abi.encodePacked(
-            i % 2 == 0 ? "Gold Plate " : "Gold Cluster ",
-            toString((i / 2) + 1)
-          )
+          abi.encodePacked(i % 2 == 0 ? "Gold Plate " : "Gold Cluster ", toString((i / 2) + 1))
         ),
         valueName: layerPaths[i]
       });
@@ -411,22 +469,13 @@ contract GoldRenderer is AccessControl {
     return allTraits;
   }
 
-  function stringEq(
-    string memory a,
-    string memory b
-  ) internal pure returns (bool result) {
+  function stringEq(string memory a, string memory b) internal pure returns (bool result) {
     assembly {
-      result := eq(
-        keccak256(add(a, 0x20), mload(a)),
-        keccak256(add(b, 0x20), mload(b))
-      )
+      result := eq(keccak256(add(a, 0x20), mload(a)), keccak256(add(b, 0x20), mload(b)))
     }
   }
 
-  function findElement(
-    string[] memory arr,
-    string memory element
-  ) internal pure returns (bool) {
+  function findElement(string[] memory arr, string memory element) internal pure returns (bool) {
     for (uint256 i = 0; i < arr.length; i++) {
       if (stringEq(arr[i], element)) {
         return true;
@@ -435,10 +484,7 @@ contract GoldRenderer is AccessControl {
     return false;
   }
 
-  function findElement(
-    uint[] memory arr,
-    uint element
-  ) internal pure returns (bool) {
+  function findElement(uint[] memory arr, uint element) internal pure returns (bool) {
     for (uint256 i = 0; i < arr.length; i++) {
       if (arr[i] == element) {
         return true;
@@ -549,176 +595,65 @@ contract GoldRenderer is AccessControl {
     "comic",
     "ribbon",
     "wave",
-    "footprint large"
+    "footprint large",
+    "ice small"
   ];
-  uint256[] internal layer_1_indexes = [
-    14,
-    40,
-    43,
-    2,
-    41,
-    34,
-    35,
-    37,
-    38,
-    39,
-    23,
-    11,
-    42,
-    36,
-    3
-  ];
-  uint256[] internal layer_1_probabilities = [
-    5,
-    5,
-    6,
-    7,
-    7,
-    10,
-    10,
-    10,
-    10,
-    10,
-    15,
-    15,
-    17,
-    18,
-    20
-  ];
-  uint256[] internal layer_2_indexes = [2, 7, 0, 5, 6, 1, 4, 3];
-  uint256[] internal layer_2_probabilities = [7, 7, 8, 10, 10, 12, 15, 20];
-  uint256[] internal layer_3_indexes = [
-    54,
-    44,
-    48,
-    53,
-    6,
-    5,
-    7,
-    0,
-    52,
-    45,
-    1,
-    51,
-    46,
-    47,
-    49,
-    4,
-    10,
-    50,
-    13
-  ];
-  uint256[] internal layer_3_probabilities = [
-    4,
-    5,
-    6,
-    6,
-    6,
-    7,
-    7,
-    8,
-    10,
-    12,
-    12,
-    12,
-    14,
-    15,
-    15,
-    15,
-    20,
-    20,
-    20
-  ];
-  uint256[] internal layer_4_indexes = [12, 14, 8, 9, 15, 11, 16, 10, 13];
-  uint256[] internal layer_4_probabilities = [4, 5, 10, 10, 10, 15, 15, 20, 20];
+  uint256[] internal layer_1_indexes = [11, 34, 35, 2, 37, 38, 39, 40, 41, 43, 14, 23, 36, 3, 42];
+  uint256[] internal layer_1_probabilities = [2, 4, 4, 4, 4, 4, 4, 4, 4, 4, 6, 11, 15, 15, 15];
+  uint256[] internal layer_2_indexes = [0, 7, 2, 6, 5, 1, 3, 4];
+  uint256[] internal layer_2_probabilities = [2, 7, 10, 10, 12, 14, 20, 25];
+  uint256[] internal layer_3_indexes = [0, 54, 44, 45, 46, 48, 5, 53, 6, 7, 4, 51, 52, 47, 10, 50, 13, 1, 49];
+  uint256[] internal layer_3_probabilities = [2, 2, 4, 4, 4, 4, 4, 4, 4, 4, 5, 5, 5, 7, 7, 7, 8, 10, 10];
+  uint256[] internal layer_4_indexes = [12, 8, 14, 9, 15, 11, 16, 13, 10];
+  uint256[] internal layer_4_probabilities = [2, 4, 4, 10, 10, 15, 15, 18, 22];
   uint256[] internal layer_5_indexes = [
-    8,
-    66,
     59,
-    60,
+    8,
+    55,
+    56,
+    57,
     9,
-    63,
-    64,
+    58,
+    60,
     15,
     62,
-    55,
-    22,
+    63,
     16,
-    65,
-    56,
-    61,
-    57,
+    64,
+    66,
     19,
     26,
-    58
+    22,
+    61,
+    65
   ];
-  uint256[] internal layer_5_probabilities = [
-    7,
-    7,
-    8,
-    9,
-    10,
-    10,
-    10,
-    11,
-    12,
-    15,
-    15,
-    15,
-    16,
-    18,
-    18,
-    20,
-    20,
-    20,
-    25
-  ];
-  uint256[] internal layer_6_indexes = [20, 21, 18, 17, 24, 22, 23, 19, 25];
-  uint256[] internal layer_6_probabilities = [2, 3, 4, 10, 10, 15, 15, 20, 20];
+  uint256[] internal layer_5_probabilities = [2, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 10, 10, 10, 10, 10];
+  uint256[] internal layer_6_indexes = [20, 22, 18, 21, 17, 24, 80, 25, 19];
+  uint256[] internal layer_6_probabilities = [2, 4, 5, 5, 8, 10, 15, 25, 26];
   uint256[] internal layer_7_indexes = [
-    71,
+    70,
+    30,
     67,
+    32,
     17,
+    71,
     72,
     24,
-    75,
+    77,
     78,
-    32,
-    70,
-    79,
     69,
     73,
-    77,
+    75,
+    74,
     27,
     76,
-    74,
+    79,
     68,
-    28,
-    30
+    28
   ];
-  uint256[] internal layer_7_probabilities = [
-    6,
-    7,
-    7,
-    7,
-    9,
-    10,
-    10,
-    11,
-    12,
-    12,
-    13,
-    15,
-    15,
-    16,
-    16,
-    17,
-    18,
-    20,
-    20
-  ];
-  uint256[] internal layer_8_indexes = [27, 32, 26, 28, 30, 31, 29, 33];
-  uint256[] internal layer_8_probabilities = [10, 10, 20, 20, 20, 20, 25, 27];
+  uint256[] internal layer_7_probabilities = [2, 2, 4, 4, 4, 4, 4, 4, 4, 4, 5, 5, 5, 6, 7, 7, 7, 10, 12];
+  uint256[] internal layer_8_indexes = [30, 29, 31, 32, 27, 28, 26, 33];
+  uint256[] internal layer_8_probabilities = [2, 10, 10, 10, 12, 16, 20, 20];
   uint256[] internal hodl_layer_indexes = [
     6,
     71,
@@ -897,23 +832,5 @@ contract GoldRenderer is AccessControl {
     "dawn",
     "goldenhour"
   ];
-  uint256[] internal color_chance = [
-    3,
-    4,
-    4,
-    5,
-    5,
-    5,
-    5,
-    5,
-    6,
-    7,
-    7,
-    8,
-    10,
-    12,
-    20,
-    30,
-    40
-  ];
+  uint256[] internal color_chance = [3, 4, 4, 5, 5, 5, 5, 5, 6, 7, 7, 8, 10, 12, 20, 30, 40];
 }

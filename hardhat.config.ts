@@ -8,6 +8,7 @@ import "solidity-coverage";
 import "hardhat-contract-sizer";
 import "hardhat-gas-reporter";
 import "@nomicfoundation/hardhat-chai-matchers";
+import "hardhat-watcher";
 
 const SEED_PHRASE = process.env.SEED_PHRASE as string;
 const ALCHEMY_KEY = process.env.ALCHEMY_KEY as string;
@@ -95,6 +96,15 @@ module.exports = {
   },
   mocha: {
     timeout: 120000,
+  },
+  watcher: {
+    test: {
+      tasks: [{ command: "test", params: { testFiles: ["{path}"] } }],
+      files: ["./test/**/*"],
+      verbose: false,
+      clearOnStart: true,
+      runOnLaunch: false,
+    },
   },
 };
 
