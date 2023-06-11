@@ -85,7 +85,8 @@ export async function deployContracts() {
     [dev.address, artist.address, dao.address],
     wethContract.address,
     rendererContract.address,
-    20
+    20,
+    "0x00000000000076A84feF008CDAbe6409d2FE638B"
   );
   await nftContract.deployed();
   console.log("NFT Contract is deployed", nftContract.address);

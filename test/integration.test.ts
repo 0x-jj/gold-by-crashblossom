@@ -1,12 +1,6 @@
-import { loadFixture, time } from "@nomicfoundation/hardhat-network-helpers";
+import { loadFixture } from "@nomicfoundation/hardhat-network-helpers";
 import { expect } from "chai";
 import { ethers } from "hardhat";
-import { faker } from "@faker-js/faker";
-import dayjs from "dayjs";
-
-import { formatUnits, parseUnits } from "ethers/lib/utils";
-import { BigNumber } from "ethers";
-import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/signers";
 import { signBid } from "./helpers/sign";
 import { DutchAuction } from "../typechain-types";
 import { deployContracts } from "./utils";
@@ -51,7 +45,7 @@ const getSignature = async (auction: DutchAuction, account: string, deadline: nu
   return signature;
 };
 
-describe.only("Dutch auction integration tests", function () {
+describe("Dutch auction integration tests", function () {
   let merkleTree: MerkleTree;
   // We define a fixture to reuse the same setup in every test.
   // We use loadFixture to run this setup once, snapshot that state,
@@ -69,7 +63,8 @@ describe.only("Dutch auction integration tests", function () {
         [deployer.address],
         contracts.wethContract.address,
         contracts.rendererContract.address,
-        supply
+        supply,
+        "0x00000000000076A84feF008CDAbe6409d2FE638B"
       );
 
       merkleTree = contracts.merkleTree.tree;
@@ -79,7 +74,8 @@ describe.only("Dutch auction integration tests", function () {
         nft.address,
         signer.address,
         treasury.address,
-        contracts.merkleTree.root
+        contracts.merkleTree.root,
+        "0x00000000000076A84feF008CDAbe6409d2FE638B"
       );
 
       await nft.setMinterAddress(auction.address);
@@ -102,14 +98,14 @@ describe.only("Dutch auction integration tests", function () {
       const marciaSign = getSignature(auction, marcia.address, deadline, marciaQty);
 
       await Promise.all([
-        auction.connect(alice).bid(aliceQty, deadline, aliceSign, {
+        auction.connect(alice).bid(aliceQty, deadline, aliceSign, alice.address, {
           value: startAmount.mul(aliceQty),
         }),
-        auction.connect(bob).bid(bobQty, deadline, bobSign, { value: startAmount.mul(bobQty) }),
+        auction.connect(bob).bid(bobQty, deadline, bobSign, bob.address, { value: startAmount.mul(bobQty) }),
       ]);
 
       await expect(
-        auction.connect(marcia).bid(marciaQty, deadline, marciaSign, {
+        auction.connect(marcia).bid(marciaQty, deadline, marciaSign, marcia.address, {
           value: startAmount.mul(marciaQty),
         })
       ).to.reverted;
@@ -122,11 +118,13 @@ describe.only("Dutch auction integration tests", function () {
       const aliceQty = 3;
       const aliceSign = getSignature(auction, alice.address, deadline, aliceQty);
 
-      await auction.connect(alice).bid(aliceQty, deadline, aliceSign, {
+      await auction.connect(alice).bid(aliceQty, deadline, aliceSign, alice.address, {
         value: startAmount.mul(aliceQty + 2),
       });
 
-      await expect(auction.connect(marcia).claimRefund(merkleTree.getHexProof(marcia.address))).to.reverted;
+      await expect(
+        auction.connect(marcia).claimRefund(marcia.address, merkleTree.getHexProof(marcia.address))
+      ).to.reverted;
     });
     it("fails when sold out and try to withdraw funds if sale not ended", async function () {
       const { deployer, alice, auction } = await loadFixture(callFixture(3));
@@ -136,7 +134,7 @@ describe.only("Dutch auction integration tests", function () {
       const aliceQty = 3;
       const aliceSign = getSignature(auction, alice.address, deadline, aliceQty);
 
-      await auction.connect(alice).bid(aliceQty, deadline, aliceSign, {
+      await auction.connect(alice).bid(aliceQty, deadline, aliceSign, alice.address, {
         value: startAmount.mul(aliceQty + 2),
       });
 

@@ -9,6 +9,7 @@ import {SafeCast} from "@openzeppelin/contracts/utils/math/SafeCast.sol";
 import {AccessControl} from "@openzeppelin/contracts/access/AccessControl.sol";
 import {Pausable} from "@openzeppelin/contracts/security/Pausable.sol";
 import {ERC721} from "./lib/ERC721.sol";
+import {IDelegateCash} from "./lib/IDelegateCash.sol";
 
 error NotAuthorized();
 error MaxSupplyReached();
@@ -48,10 +49,10 @@ contract Gold is ERC721, PaymentSplitter, AccessControl, Ownable, Pausable {
     address held240MonthsClaimedBy;
   }
 
-  // Mapping from token ID to token data
+  /// @dev Mapping from token ID to token data
   mapping(uint256 => TokenData) public tokenData;
 
-  // Track when we receive royalty payments
+  /// @dev Track when we receive royalty payments
   struct RoyaltyReceipt {
     uint64 timestamp;
     uint192 amount;
@@ -59,7 +60,7 @@ contract Gold is ERC721, PaymentSplitter, AccessControl, Ownable, Pausable {
   uint256 public ethReceivedCount;
   RoyaltyReceipt[HISTORY_LENGTH] public ethReceipts;
 
-  // Track WETH roughly by checking balances between transfers
+  /// @dev Track WETH roughly by checking balances between transfers
   struct WethStats {
     uint64 wethReceivedCount;
     uint192 latestWethBalance;
@@ -67,14 +68,17 @@ contract Gold is ERC721, PaymentSplitter, AccessControl, Ownable, Pausable {
   WethStats private wethStats;
   RoyaltyReceipt[HISTORY_LENGTH] public wethReceipts;
 
-  // Number of transfers that have happened on the contract
+  /// @dev Number of transfers that have happened on the contract
   uint256 public transferCount;
 
-  // Timestamp of the last transfer that happened on the contract
+  /// @dev Timestamp of the last transfer that happened on the contract
   uint256[HISTORY_LENGTH] public latestTransferTimestamps;
 
-  // Base timestamp to use to calculate averages in the art script
+  /// @dev Base timestamp to use to calculate averages in the art script
   uint256 public baseTimestamp;
+
+  /// @dev Delegate cash contract address
+  IDelegateCash public delegateCash;
 
   constructor(
     address[] memory payees,
@@ -82,7 +86,8 @@ contract Gold is ERC721, PaymentSplitter, AccessControl, Ownable, Pausable {
     address[] memory admins_,
     address wethContract_,
     address goldRenderer_,
-    uint256 tokenIdMax_
+    uint256 tokenIdMax_,
+    address delegateCash_
   ) PaymentSplitter(payees, shares) ERC721("GOLD", "GOLD") {
     _grantRole(DEFAULT_ADMIN_ROLE, _msgSender());
     for (uint256 i = 0; i < admins_.length; i++) {
@@ -93,6 +98,7 @@ contract Gold is ERC721, PaymentSplitter, AccessControl, Ownable, Pausable {
     goldRenderer = IGoldRenderer(goldRenderer_);
     baseTimestamp = block.timestamp;
     tokenIdMax = tokenIdMax_;
+    delegateCash = IDelegateCash(delegateCash_);
   }
 
   receive() external payable override {
@@ -144,6 +150,10 @@ contract Gold is ERC721, PaymentSplitter, AccessControl, Ownable, Pausable {
     }
   }
 
+  function totalSupply() public view returns (uint256) {
+    return currentTokenId;
+  }
+
   function tokenURI(uint256 tokenId) public view override returns (string memory) {
     return goldRenderer.tokenURI(tokenId);
   }
@@ -183,9 +193,17 @@ contract Gold is ERC721, PaymentSplitter, AccessControl, Ownable, Pausable {
     }
   }
 
-  function claimBonusPlates(uint256 tokenId, uint8 milestone) external {
+  function claimBonusPlates(uint256 tokenId, uint8 milestone, address vaultAddress) external {
+    address claimant = _msgSender();
+
+    if (vaultAddress != address(0) && vaultAddress != _msgSender()) {
+      bool isDelegateValid = delegateCash.checkDelegateForContract(_msgSender(), vaultAddress, address(this));
+      require(isDelegateValid, "invalid delegate-vault pairing");
+      claimant = vaultAddress;
+    }
+
     // TODO: CHANGE MINS/SECS TO DAYS
-    if (ownerOf(tokenId) != _msgSender()) revert NotAuthorized();
+    if (ownerOf(tokenId) != claimant) revert NotAuthorized();
 
     uint256 lastTransferTimestamp = latestTransferTimestamp(tokenData[tokenId]);
 
@@ -199,7 +217,7 @@ contract Gold is ERC721, PaymentSplitter, AccessControl, Ownable, Pausable {
       if (block.timestamp < eligibleAt) revert ClaimingTooEarly();
       if (block.timestamp > (eligibleAt + (24 minutes))) revert ClaimingTooLate();
 
-      tokenData[tokenId].held6MonthsClaimedBy = _msgSender();
+      tokenData[tokenId].held6MonthsClaimedBy = claimant;
     }
 
     if (milestone == 2) {
@@ -212,7 +230,7 @@ contract Gold is ERC721, PaymentSplitter, AccessControl, Ownable, Pausable {
       if (block.timestamp < eligibleAt) revert ClaimingTooEarly();
       if (block.timestamp > (eligibleAt + (24 minutes))) revert ClaimingTooLate();
 
-      tokenData[tokenId].held12MonthsClaimedBy = _msgSender();
+      tokenData[tokenId].held12MonthsClaimedBy = claimant;
     }
 
     if (milestone == 3) {
@@ -225,7 +243,7 @@ contract Gold is ERC721, PaymentSplitter, AccessControl, Ownable, Pausable {
       if (block.timestamp < eligibleAt) revert ClaimingTooEarly();
       if (block.timestamp > (eligibleAt + (24 minutes))) revert ClaimingTooLate();
 
-      tokenData[tokenId].held24MonthsClaimedBy = _msgSender();
+      tokenData[tokenId].held24MonthsClaimedBy = claimant;
     }
 
     if (milestone == 4) {
@@ -238,7 +256,7 @@ contract Gold is ERC721, PaymentSplitter, AccessControl, Ownable, Pausable {
       if (block.timestamp < eligibleAt) revert ClaimingTooEarly();
       if (block.timestamp > (eligibleAt + (24 minutes))) revert ClaimingTooLate();
 
-      tokenData[tokenId].held60MonthsClaimedBy = _msgSender();
+      tokenData[tokenId].held60MonthsClaimedBy = claimant;
     }
 
     if (milestone == 5) {
@@ -251,7 +269,7 @@ contract Gold is ERC721, PaymentSplitter, AccessControl, Ownable, Pausable {
       if (block.timestamp < eligibleAt) revert ClaimingTooEarly();
       if (block.timestamp > (eligibleAt + (24 minutes))) revert ClaimingTooLate();
 
-      tokenData[tokenId].held120MonthsClaimedBy = _msgSender();
+      tokenData[tokenId].held120MonthsClaimedBy = claimant;
     }
 
     if (milestone == 6) {
@@ -264,7 +282,7 @@ contract Gold is ERC721, PaymentSplitter, AccessControl, Ownable, Pausable {
       if (block.timestamp < eligibleAt) revert ClaimingTooEarly();
       if (block.timestamp > (eligibleAt + (24 minutes))) revert ClaimingTooLate();
 
-      tokenData[tokenId].held240MonthsClaimedBy = _msgSender();
+      tokenData[tokenId].held240MonthsClaimedBy = claimant;
     }
   }
 

@@ -63,6 +63,7 @@ module.exports = {
     },
     goerli: {
       url: `https://sly-warmhearted-gas.ethereum-goerli.quiknode.pro/${QUIKNODE_KEY_GOERLI}/`,
+      // url: `https://eth-goerli.g.alchemy.com/v2/${ALCHEMY_KEY_GOERLI}`,
       blockGasLimit: 500000000,
       accounts: {
         initialIndex: 4,

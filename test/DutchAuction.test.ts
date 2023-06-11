@@ -56,7 +56,7 @@ describe("DutchAuction", function () {
     returnPrice = false
   ) => {
     const signature = await getSignature(user.address, deadline, qty);
-    const tx = await auction.connect(user).bid(qty, deadline, signature, { value });
+    const tx = await auction.connect(user).bid(qty, deadline, signature, user.address, { value });
 
     if (returnPrice) {
       const receipt = await tx.wait();
@@ -80,11 +80,18 @@ describe("DutchAuction", function () {
       [admin.address],
       wethContract.address,
       contracts.rendererContract.address,
-      20
+      20,
+      "0x00000000000076A84feF008CDAbe6409d2FE638B"
     );
 
     const Auction = await ethers.getContractFactory("DutchAuction");
-    auction = await Auction.deploy(nft.address, signer.address, treasury.address, contracts.merkleTree.root);
+    auction = await Auction.deploy(
+      nft.address,
+      signer.address,
+      treasury.address,
+      contracts.merkleTree.root,
+      "0x00000000000076A84feF008CDAbe6409d2FE638B"
+    );
 
     await nft.connect(admin).setMinterAddress(auction.address);
 
@@ -282,7 +289,7 @@ describe("DutchAuction", function () {
       const qty = 5;
       const signature = await getSignature(alice.address, deadline, qty);
       await expect(
-        auction.connect(alice).bid(qty, deadline, signature, { value: startAmount.mul(qty) })
+        auction.connect(alice).bid(qty, deadline, signature, alice.address, { value: startAmount.mul(qty) })
       ).to.be.revertedWithCustomError(auction, "ConfigNotSet");
     });
 
@@ -295,7 +302,7 @@ describe("DutchAuction", function () {
       const deadline = Math.floor(Date.now() / 1000) + 300;
       const qty = 5;
       const signature = await getSignature(alice.address, deadline, qty);
-      await expect(auction.connect(alice).bid(qty, deadline, signature, { value: 0 }))
+      await expect(auction.connect(alice).bid(qty, deadline, signature, alice.address, { value: 0 }))
         .to.be.revertedWithCustomError(auction, "InvalidStartEndTime")
         .withArgs(newStartTime, endTime);
     });
@@ -313,7 +320,7 @@ describe("DutchAuction", function () {
         const qty = 5;
         const signature = await getSignature(alice.address, deadline, qty);
         await expect(
-          auction.connect(alice).bid(qty, deadline, signature, { value: startAmount.mul(qty) })
+          auction.connect(alice).bid(qty, deadline, signature, alice.address, { value: startAmount.mul(qty) })
         ).to.be.revertedWith("Pausable: paused");
       });
 
@@ -323,7 +330,7 @@ describe("DutchAuction", function () {
         const qty = 5;
         const signature = await getSignature(alice.address, deadline, qty);
         await expect(
-          auction.connect(alice).bid(qty, deadline, signature, { value: startAmount.mul(qty) })
+          auction.connect(alice).bid(qty, deadline, signature, alice.address, { value: startAmount.mul(qty) })
         ).to.be.revertedWith("Pausable: paused");
       });
 
@@ -331,7 +338,9 @@ describe("DutchAuction", function () {
         const deadline = Math.floor(Date.now() / 1000) - 1000;
         const qty = 5;
         const signature = await getSignature(alice.address, deadline, qty);
-        await expect(auction.connect(alice).bid(qty, deadline, signature, { value: startAmount.mul(qty) }))
+        await expect(
+          auction.connect(alice).bid(qty, deadline, signature, alice.address, { value: startAmount.mul(qty) })
+        )
           .to.be.revertedWithCustomError(auction, "BidExpired")
           .withArgs(deadline);
       });
@@ -341,7 +350,7 @@ describe("DutchAuction", function () {
         const qty = 5;
         const signature = await getSignature(bob.address, deadline, qty);
         await expect(
-          auction.connect(alice).bid(qty, deadline, signature, { value: startAmount.mul(qty) })
+          auction.connect(alice).bid(qty, deadline, signature, alice.address, { value: startAmount.mul(qty) })
         ).to.be.revertedWithCustomError(auction, "InvalidSignature");
       });
 
@@ -350,7 +359,7 @@ describe("DutchAuction", function () {
         const qty = 5;
         const signature = await getSignature(alice.address, deadline, qty);
         await expect(
-          auction.connect(alice).bid(qty, deadline, signature, { value: 0 })
+          auction.connect(alice).bid(qty, deadline, signature, alice.address, { value: 0 })
         ).to.be.revertedWithCustomError(auction, "NotEnoughValue");
       });
 
@@ -359,7 +368,7 @@ describe("DutchAuction", function () {
         const qty = 0;
         const signature = await getSignature(alice.address, deadline, qty);
         await expect(
-          auction.connect(alice).bid(qty, deadline, signature, { value: startAmount.mul(qty) })
+          auction.connect(alice).bid(qty, deadline, signature, alice.address, { value: startAmount.mul(qty) })
         ).to.be.revertedWithCustomError(auction, "InvalidQuantity");
       });
 
@@ -370,7 +379,7 @@ describe("DutchAuction", function () {
         const signature = await getSignature(alice.address, deadline, qty);
         const tx = await auction
           .connect(alice)
-          .bid(qty, deadline, signature, { value: startAmount.mul(qty) });
+          .bid(qty, deadline, signature, alice.address, { value: startAmount.mul(qty) });
 
         await expect(tx).to.emit(auction, "Bid");
         expect(await nft.balanceOf(alice.address)).to.be.eq(qty);
@@ -397,7 +406,7 @@ describe("DutchAuction", function () {
         const signature = await getSignature(alice.address, deadline, 1);
 
         await expect(
-          auction.connect(alice).bid(1, deadline, signature, { value })
+          auction.connect(alice).bid(1, deadline, signature, alice.address, { value })
         ).to.be.revertedWithCustomError(auction, "MaxSupplyReached");
       });
 
@@ -411,7 +420,7 @@ describe("DutchAuction", function () {
         await increaseTime(30 * 60);
         const signature = await getSignature(alice.address, deadline, 2);
         await expect(
-          auction.connect(alice).bid(2, deadline, signature, { value })
+          auction.connect(alice).bid(2, deadline, signature, alice.address, { value })
         ).to.be.revertedWithCustomError(auction, "PurchaseLimitReached");
       });
 
@@ -425,7 +434,9 @@ describe("DutchAuction", function () {
           nonce,
           deadline,
         });
-        await auction.connect(alice).bid(qty, deadline, signature, { value: startAmount.mul(qty) });
+        await auction
+          .connect(alice)
+          .bid(qty, deadline, signature, alice.address, { value: startAmount.mul(qty) });
 
         nonce = await auction.getNonce(alice.address);
         qty = 1;
@@ -436,7 +447,7 @@ describe("DutchAuction", function () {
           deadline,
         });
         await expect(
-          auction.connect(alice).bid(qty, deadline, signature, { value: startAmount.mul(qty) })
+          auction.connect(alice).bid(qty, deadline, signature, alice.address, { value: startAmount.mul(qty) })
         ).to.be.revertedWithCustomError(auction, "PurchaseLimitReached");
       });
 
@@ -445,7 +456,7 @@ describe("DutchAuction", function () {
         const qty = 5;
         const signature = await getSignature(alice.address, deadline, qty);
         await increaseTime(3 * 3600);
-        await expect(auction.connect(alice).bid(qty, deadline, signature, { value: 0 }))
+        await expect(auction.connect(alice).bid(qty, deadline, signature, alice.address, { value: 0 }))
           .to.be.revertedWithCustomError(auction, "InvalidStartEndTime")
           .withArgs(startTime, endTime);
       });
@@ -456,7 +467,7 @@ describe("DutchAuction", function () {
         const signature = await getSignature(alice.address, deadline, qty);
         const tx = await auction
           .connect(alice)
-          .bid(qty, deadline, signature, { value: startAmount.mul(qty) });
+          .bid(qty, deadline, signature, alice.address, { value: startAmount.mul(qty) });
 
         await expect(tx).to.emit(auction, "Bid");
         const receipt = await tx.wait();
@@ -544,7 +555,7 @@ describe("DutchAuction", function () {
   describe("Claim Refund", () => {
     it("should fail to claim refund when config is not set", async () => {
       await expect(
-        auction.connect(alice).claimRefund(merkleTree.getHexProof(alice.address))
+        auction.connect(alice).claimRefund(alice.address, merkleTree.getHexProof(alice.address))
       ).to.be.revertedWithCustomError(auction, "ConfigNotSet");
     });
 
@@ -568,13 +579,13 @@ describe("DutchAuction", function () {
       it("should fail to claim refund when paused", async () => {
         await auction.connect(admin).pause();
         await expect(
-          auction.connect(alice).claimRefund(merkleTree.getHexProof(admin.address))
+          auction.connect(alice).claimRefund(alice.address, merkleTree.getHexProof(admin.address))
         ).to.be.revertedWith("Pausable: paused");
       });
 
       it("should fail to claim refund before the auction is ended", async () => {
         await expect(
-          auction.connect(alice).claimRefund(merkleTree.getHexProof(alice.address))
+          auction.connect(alice).claimRefund(alice.address, merkleTree.getHexProof(alice.address))
         ).to.be.revertedWithCustomError(auction, "ClaimRefundNotReady");
       });
 
@@ -583,8 +594,10 @@ describe("DutchAuction", function () {
 
         const beforeAliceBalance = await ethers.provider.getBalance(alice.address);
         const beforeBobBalance = await ethers.provider.getBalance(bob.address);
-        const tx1 = await auction.connect(alice).claimRefund(merkleTree.getHexProof(alice.address));
-        await auction.connect(bob).claimRefund(merkleTree.getHexProof(bob.address));
+        const tx1 = await auction
+          .connect(alice)
+          .claimRefund(alice.address, merkleTree.getHexProof(alice.address));
+        await auction.connect(bob).claimRefund(bob.address, merkleTree.getHexProof(bob.address));
         await expect(tx1).to.emit(auction, "ClaimRefund");
         const afterAliceBalance = await ethers.provider.getBalance(alice.address);
         const afterBobBalance = await ethers.provider.getBalance(bob.address);
@@ -598,14 +611,14 @@ describe("DutchAuction", function () {
       it("should fail to claim refund twice", async () => {
         await increaseTime(3600 * 2 + 30 * 60);
 
-        await auction.connect(alice).claimRefund(merkleTree.getHexProof(alice.address));
-        await auction.connect(bob).claimRefund(merkleTree.getHexProof(bob.address));
+        await auction.connect(alice).claimRefund(alice.address, merkleTree.getHexProof(alice.address));
+        await auction.connect(bob).claimRefund(bob.address, merkleTree.getHexProof(bob.address));
 
         await expect(
-          auction.connect(alice).claimRefund(merkleTree.getHexProof(alice.address))
+          auction.connect(alice).claimRefund(alice.address, merkleTree.getHexProof(alice.address))
         ).to.be.revertedWithCustomError(auction, "UserAlreadyClaimed");
         await expect(
-          auction.connect(bob).claimRefund(merkleTree.getHexProof(bob.address))
+          auction.connect(bob).claimRefund(bob.address, merkleTree.getHexProof(bob.address))
         ).to.be.revertedWithCustomError(auction, "UserAlreadyClaimed");
       });
     });

@@ -24,6 +24,7 @@ import "@openzeppelin/contracts/access/AccessControl.sol";
 import "@openzeppelin/contracts/security/Pausable.sol";
 import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 import "@openzeppelin/contracts/utils/cryptography/MerkleProof.sol";
+import {IDelegateCash} from "./IDelegateCash.sol";
 
 import "./IDutchAuction.sol";
 import "./INFT.sol";
@@ -70,6 +71,9 @@ contract DutchAuction is IDutchAuction, AccessControl, Pausable, ReentrancyGuard
   /// @dev Merkle root holding allowed discount addresses
   bytes32 public discountMerkleRoot;
 
+  /// @dev Delegate cash contract address
+  IDelegateCash public delegateCash;
+
   modifier validConfig() {
     if (_config.startTime == 0) revert ConfigNotSet();
     _;
@@ -87,16 +91,19 @@ contract DutchAuction is IDutchAuction, AccessControl, Pausable, ReentrancyGuard
   /// @param _signerAddress Signer address
   /// @param _treasuryAddress Treasury address
   /// @param _discountMerkleRoot Merkle root for discounts
+  /// @param _delegateCash Delegate cash address
   constructor(
     address _nftAddress,
     address _signerAddress,
     address _treasuryAddress,
-    bytes32 _discountMerkleRoot
+    bytes32 _discountMerkleRoot,
+    address _delegateCash
   ) {
     nftContractAddress = INFT(_nftAddress);
     signerAddress = _signerAddress;
     treasuryAddress = _treasuryAddress;
     discountMerkleRoot = _discountMerkleRoot;
+    delegateCash = IDelegateCash(_delegateCash);
 
     _setupRole(DEFAULT_ADMIN_ROLE, msg.sender);
 
@@ -262,17 +269,30 @@ contract DutchAuction is IDutchAuction, AccessControl, Pausable, ReentrancyGuard
   function bid(
     uint32 qty,
     uint256 deadline,
-    bytes memory signature
+    bytes memory signature,
+    address vaultAddress
   ) external payable nonReentrant whenNotPaused validConfig validTime {
+    address requester = msg.sender;
+
+    if (vaultAddress != address(0) && vaultAddress != msg.sender) {
+      bool isDelegateValid = delegateCash.checkDelegateForContract(
+        msg.sender,
+        vaultAddress,
+        address(nftContractAddress)
+      );
+      require(isDelegateValid, "invalid delegate-vault pairing");
+      requester = vaultAddress;
+    }
+
     if (block.timestamp > deadline) revert BidExpired(deadline);
     if (qty < 1) revert InvalidQuantity();
 
     bytes32 hashStruct = keccak256(
       abi.encode(
         keccak256("Bid(address account,uint32 qty,uint256 nonce,uint256 deadline)"),
-        msg.sender,
+        requester,
         qty,
-        useNonce(msg.sender),
+        useNonce(requester),
         deadline
       )
     );
@@ -292,7 +312,7 @@ contract DutchAuction is IDutchAuction, AccessControl, Pausable, ReentrancyGuard
     uint256 payment = qty * price;
     if (msg.value < payment) revert NotEnoughValue();
 
-    User storage bidder = _userData[msg.sender]; // get user's current bid total
+    User storage bidder = _userData[requester]; // get user's current bid total
     bidder.contribution = bidder.contribution + uint216(payment);
     bidder.tokensBidded = bidder.tokensBidded + qty;
 
@@ -307,13 +327,13 @@ contract DutchAuction is IDutchAuction, AccessControl, Pausable, ReentrancyGuard
 
     if (msg.value > payment) {
       uint256 refundInWei = msg.value - payment;
-      (bool success, ) = msg.sender.call{value: refundInWei}("");
+      (bool success, ) = requester.call{value: refundInWei}("");
       if (!success) revert TransferFailed();
     }
     // mint tokens to user
-    _mintTokens(msg.sender, qty);
+    _mintTokens(requester, qty);
 
-    emit Bid(msg.sender, qty, price);
+    emit Bid(requester, qty, price);
   }
 
   /// @notice Return user's claimable tokens count
@@ -367,11 +387,14 @@ contract DutchAuction is IDutchAuction, AccessControl, Pausable, ReentrancyGuard
    * This function can only be called after the refund delay time has passed post-auction end.
    * Note: If the function reverts with 'ClaimRefundNotReady', it means the refund delay time has not passed yet.
    */
-  function claimRefund(bytes32[] calldata proof) external nonReentrant whenNotPaused validConfig {
+  function claimRefund(
+    address vaultAddress,
+    bytes32[] calldata proof
+  ) external nonReentrant whenNotPaused validConfig {
     Config memory config = _config;
     if (config.endTime + config.refundDelayTime >= block.timestamp) revert ClaimRefundNotReady();
 
-    _claimRefund(msg.sender, proof);
+    _claimRefund(vaultAddress, proof);
   }
 
   /**

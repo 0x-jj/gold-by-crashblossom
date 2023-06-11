@@ -3,6 +3,7 @@ import path from "path";
 import * as utilities from "./utils";
 import { ScriptyStorage } from "../typechain-types";
 import { BigNumber } from "ethers";
+import { getMerkleRootWithDiscounts } from "../test/utils";
 
 const waitIfNeeded = async (tx: any) => {
   if (tx.wait) {
@@ -61,6 +62,7 @@ const DEV_SPLIT = 140; // 14%
 const ARTIST_SPLIT = 650; // 65 %
 const DAO_SPLIT = 210; // 21 %
 const SUPPLY = 500;
+const SIGNER = "0x589b6C421C55260fC5E4117Bd893f57eD7bd44cD";
 
 async function main() {
   console.log("");
@@ -150,12 +152,40 @@ async function main() {
     [dev.address, artist.address, dao.address],
     wethContract.address,
     rendererContract.address,
-    SUPPLY
+    SUPPLY,
+    network.name === "hardhat"
+      ? "0x00000000000076a84fef008cdabe6409d2fe638b"
+      : utilities.addressFor(network.name, "DelegateCash")
   );
   await nftContract.deployed();
   console.log("NFT Contract is deployed", nftContract.address);
 
   await rendererContract.setGoldContract(nftContract.address);
+
+  const merkleTree = getMerkleRootWithDiscounts([{ address: dev.address, discountBps: 2000 }]);
+
+  const Auction = await ethers.getContractFactory("DutchAuction");
+  const auction = await Auction.deploy(
+    nftContract.address,
+    dev.address,
+    dao.address,
+    merkleTree.root,
+    network.name === "hardhat"
+      ? "0x00000000000076a84fef008cdabe6409d2fe638b"
+      : utilities.addressFor(network.name, "DelegateCash")
+  );
+  console.log("Auction Contract is deployed", auction.address);
+  const startAmount = ethers.utils.parseEther("6");
+  const endAmount = ethers.utils.parseEther("0.2");
+  const limit = ethers.utils.parseEther("1000");
+  const refundDelayTime = 30 * 60;
+  const startTime = Math.floor(Date.now() / 1000) - 100;
+  const endTime = startTime + 6 * 3600;
+
+  await auction.setConfig(startAmount, endAmount, limit, refundDelayTime, startTime, endTime);
+  await auction.setSignerAddress(SIGNER);
+  await nftContract.setMinterAddress(auction.address);
+  console.log("Config, minter, signer are set");
 
   await nftContract.mint(dev.address);
   console.log("Minted 1 NFT");
@@ -187,6 +217,7 @@ async function main() {
         wethContract.address,
         rendererContract.address,
         SUPPLY,
+        utilities.addressFor(network.name, "DelegateCash"),
       ],
     });
   }
