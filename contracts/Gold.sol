@@ -150,6 +150,10 @@ contract Gold is ERC721, PaymentSplitter, AccessControl, Ownable, Pausable {
     }
   }
 
+  function totalSupply() public view returns (uint256) {
+    return currentTokenId;
+  }
+
   function tokenURI(uint256 tokenId) public view override returns (string memory) {
     return goldRenderer.tokenURI(tokenId);
   }

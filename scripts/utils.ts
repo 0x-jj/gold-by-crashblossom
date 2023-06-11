@@ -53,7 +53,7 @@ const addresses = {
     ScriptyBuilder: "0x16b727a2Fc9322C724F4Bc562910c99a5edA5084",
     ETHFSFileStorage: "0xFc7453dA7bF4d0c739C1c53da57b3636dAb0e11e",
     WETH: "0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2",
-
+    DelegateCash: "0x00000000000076a84fef008cdabe6409d2fe638b",
     ethfs_ContentStore: "0xC6806fd75745bB5F5B32ADa19963898155f9DB91",
     ethfs_FileStore: "0x9746fD0A77829E12F8A9DBe70D7a322412325B91",
   },
@@ -62,22 +62,20 @@ const addresses = {
     ScriptyBuilder: "0x610c05bC5739baf4837fF67d5fc5Ab6D9Ee7558D",
     ETHFSFileStorage: "0x70a78d91A434C1073D47b2deBe31C184aA8CA9Fa",
     WETH: "0xB4FBF271143F4FBf7B91A5ded31805e42b2208d6",
-
+    DelegateCash: "0x00000000000076a84fef008cdabe6409d2fe638b",
     ethfs_ContentStore: "0xED7C16aB4eB4D091F492713e5235Ac93852bc3a0",
     ethfs_FileStore: "0x5E348d0975A920E9611F8140f84458998A53af94",
   },
 };
 
-const addressFor = (networkName: string, name: string) => {
+export const addressFor = (networkName: string, name: string) => {
   // @ts-ignore
   return addresses[networkName][name];
 };
 
 export async function deployOrGetContracts(networkName: string) {
   if (networkName == "hardhat" || networkName == "localhost") {
-    const contentStoreContract = await (
-      await ethers.getContractFactory("ContentStore")
-    ).deploy();
+    const contentStoreContract = await (await ethers.getContractFactory("ContentStore")).deploy();
     await contentStoreContract.deployed();
     console.log("ContentStore deployed at", contentStoreContract.address);
 
@@ -87,9 +85,7 @@ export async function deployOrGetContracts(networkName: string) {
     await scriptyStorageContract.deployed();
     console.log("ScriptyStorage deployed at", scriptyStorageContract.address);
 
-    const scriptyBuilderContract = await (
-      await ethers.getContractFactory("ScriptyBuilder")
-    ).deploy();
+    const scriptyBuilderContract = await (await ethers.getContractFactory("ScriptyBuilder")).deploy();
     await scriptyBuilderContract.deployed();
     console.log("ScriptyBuilder deployed at", scriptyBuilderContract.address);
 
@@ -101,17 +97,11 @@ export async function deployOrGetContracts(networkName: string) {
     return { scriptyStorageContract, scriptyBuilderContract, wethContract };
   } else {
     const scriptyStorageAddress = addressFor(networkName, "ScriptyStorage");
-    const scriptyStorageContract = await ethers.getContractAt(
-      "ScriptyStorage",
-      scriptyStorageAddress
-    );
+    const scriptyStorageContract = await ethers.getContractAt("ScriptyStorage", scriptyStorageAddress);
     console.log("ScriptyStorage is already deployed at", scriptyStorageAddress);
 
     const scriptyBuilderAddress = addressFor(networkName, "ScriptyBuilder");
-    const scriptyBuilderContract = await ethers.getContractAt(
-      "ScriptyBuilder",
-      scriptyBuilderAddress
-    );
+    const scriptyBuilderContract = await ethers.getContractAt("ScriptyBuilder", scriptyBuilderAddress);
     console.log("ScriptyBuilder is already deployed at", scriptyBuilderAddress);
 
     const wethAddress = addressFor(networkName, "WETH");
