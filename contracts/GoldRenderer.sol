@@ -43,11 +43,6 @@ contract GoldRenderer is AccessControl {
 
   string public baseImageURI;
 
-  string private node1;
-  string private node2;
-  string private node3;
-  string private node4;
-
   uint256 private royaltyPct = 5;
 
   struct Seed {
@@ -88,20 +83,6 @@ contract GoldRenderer is AccessControl {
 
   function setRoyaltyPct(uint256 pct) public onlyRole(DEFAULT_ADMIN_ROLE) {
     royaltyPct = pct;
-  }
-
-  function setNode(uint256 n, string calldata uri) public onlyRole(DEFAULT_ADMIN_ROLE) {
-    if (n == 1) {
-      node1 = uri;
-    } else if (n == 2) {
-      node2 = uri;
-    } else if (n == 3) {
-      node3 = uri;
-    } else if (n == 4) {
-      node4 = uri;
-    } else {
-      revert("Invalid node");
-    }
   }
 
   function getSeedVariables(uint256 tokenId) internal view returns (uint256, uint256) {
@@ -188,20 +169,6 @@ contract GoldRenderer is AccessControl {
     }
   }
 
-  function constructJsArrayVar(
-    string memory name,
-    string[4] memory values
-  ) internal pure returns (string memory) {
-    string memory elements;
-    for (uint256 i = 0; i < values.length; i++) {
-      elements = string(abi.encodePacked(elements, '"', values[i], '"'));
-      if (i < values.length - 1) {
-        elements = string(abi.encodePacked(elements, ","));
-      }
-    }
-    return string(abi.encodePacked("let ", name, " = [", elements, "];"));
-  }
-
   function getConstantsScript(
     string memory contractAddy,
     string memory contractMetricsSelector,
@@ -210,8 +177,7 @@ contract GoldRenderer is AccessControl {
     string memory royaltyPercent,
     string memory tokenId,
     string memory seedToken,
-    string memory seedIncrement,
-    string[4] memory nodes
+    string memory seedIncrement
   ) internal pure returns (bytes memory) {
     return
       abi.encodePacked(
@@ -219,12 +185,11 @@ contract GoldRenderer is AccessControl {
         constructJsScalarVar(VariableType.STRING, "L", contractMetricsSelector),
         constructJsScalarVar(VariableType.STRING, "M", tokenMetricsSelector),
         constructJsScalarVar(VariableType.NUMBER, "$", baseTimestamp),
-        constructJsScalarVar(VariableType.NUMBER, "O", royaltyPercent),
+        constructJsScalarVar(VariableType.NUMBER, "F", royaltyPercent),
         constructJsScalarVar(VariableType.NUMBER, "P", tokenId),
-        constructJsScalarVar(VariableType.STRING, "h", seedToken),
-        constructJsScalarVar(VariableType.STRING, "s", seedIncrement),
-        constructJsArrayVar("arr", nodes)
-      );
+        constructJsScalarVar(VariableType.NUMBER, "g", seedToken),
+        constructJsScalarVar(VariableType.NUMBER, "i", seedIncrement)
+       );
   }
 
   function tokenURI(uint256 tokenId) external view returns (string memory) {
@@ -236,7 +201,7 @@ contract GoldRenderer is AccessControl {
 
     uint256 baseTimestamp = goldContract.baseTimestamp();
 
-    requests[0].name = "gold_by_crashblossom_base_v5";
+    requests[0].name = "gold_by_crashblossom_base_v9";
     requests[0].wrapType = 0; // <script>[script]</script>
     requests[0].contractAddress = scriptyStorageAddress;
 
@@ -249,11 +214,10 @@ contract GoldRenderer is AccessControl {
       toString(royaltyPct),
       toString(tokenId),
       toString(seedToken),
-      toString(tokenSeedIncrement),
-      [node1, node2, node3, node4]
+      toString(tokenSeedIncrement)
     );
 
-    requests[2].name = "gold_by_crashblossom_paths_v5";
+    requests[2].name = "gold_by_crashblossom_paths_v9";
     requests[2].wrapType = 2;
     requests[2].contractAddress = scriptyStorageAddress;
 
@@ -261,7 +225,7 @@ contract GoldRenderer is AccessControl {
     requests[3].wrapType = 0; // <script>[script]</script>
     requests[3].contractAddress = scriptyStorageAddress;
 
-    requests[4].name = "gold_by_crashblossom_main_v5";
+    requests[4].name = "gold_by_crashblossom_main_v10";
     requests[4].wrapType = 0; // <script>[script]</script>
     requests[4].contractAddress = scriptyStorageAddress;
 

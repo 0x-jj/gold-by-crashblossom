@@ -37,56 +37,28 @@ async function storeScript(
 
   if (storedScript.owner === ethers.constants.AddressZero) {
     // First create the script in the storage contract
-    await waitIfNeeded(
-      await storageContract.createScript(name, utilities.stringToBytes(name))
-    );
+    await waitIfNeeded(await storageContract.createScript(name, utilities.stringToBytes(name)));
   }
 
   // Store each chunk
   for (let i = 0; i < scriptChunks.length; i++) {
     console.log("chunk head:", scriptChunks[i].slice(0, 10));
     await waitIfNeeded(
-      await storageContract.addChunkToScript(
-        name,
-        utilities.stringToBytes(scriptChunks[i])
-      )
+      await storageContract.addChunkToScript(name, utilities.stringToBytes(scriptChunks[i]))
     );
-    console.log(
-      `${name} chunk #`,
-      i + 1,
-      "/",
-      scriptChunks.length,
-      "chunk length: ",
-      scriptChunks[i].length
-    );
+    console.log(`${name} chunk #`, i + 1, "/", scriptChunks.length, "chunk length: ", scriptChunks[i].length);
   }
   console.log(`${name} is stored`);
 }
 
 async function main() {
-  const scriptyStorageContract = await ethers.getContractAt(
-    "ScriptyStorage",
-    scriptyStorage
-  );
+  const scriptyStorageContract = await ethers.getContractAt("ScriptyStorage", scriptyStorage);
 
-  await storeScript(
-    scriptyStorageContract,
-    "gold_by_crashblossom_base_v5",
-    "../scripts/goldBase.js"
-  );
+  await storeScript(scriptyStorageContract, "gold_by_crashblossom_base_v9", "../scripts/goldBase.js");
 
-  await storeScript(
-    scriptyStorageContract,
-    "gold_by_crashblossom_paths_v5",
-    "../scripts/paths.js",
-    true
-  );
+  await storeScript(scriptyStorageContract, "gold_by_crashblossom_paths_v9", "../scripts/paths.js", true);
 
-  await storeScript(
-    scriptyStorageContract,
-    "gold_by_crashblossom_main_v5",
-    "../scripts/main.js"
-  );
+  await storeScript(scriptyStorageContract, "gold_by_crashblossom_main_v10", "../scripts/main.js");
 }
 
 main();

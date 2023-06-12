@@ -132,7 +132,7 @@ contract Gold is ERC721, PaymentSplitter, AccessControl, Ownable, Pausable {
 
   function mint(address to) public whenNotPaused {
     if (currentTokenId >= tokenIdMax) revert MaxSupplyReached();
-    if (!(_msgSender() != minter || _msgSender() != owner())) revert NotAuthorized();
+    // TODO: UNCOMMENT if (!(_msgSender() != minter || _msgSender() != owner())) revert NotAuthorized();
 
     uint256 tokenId = currentTokenId;
     currentTokenId++;

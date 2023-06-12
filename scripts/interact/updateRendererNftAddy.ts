@@ -1,7 +1,7 @@
 import { ethers } from "hardhat";
 
-const nftContractAddress = "0x549F085763C9f18d4CD327882D845c016F7D4357";
-const rendererAddress = "0x94f97608D15cD14b517525858B8B32Bb618A495F";
+const nftContractAddress = "0x6A7bFAAe99d1F5E39fc8fc6b0dA731513F634BD1";
+const rendererAddress = "0x31136443E66ecd52d7f0a48c8b89522Fea128FD5";
 async function main() {
   const renderer = await ethers.getContractAt("GoldRenderer", rendererAddress);
   await renderer.setGoldContract(nftContractAddress);

@@ -80,17 +80,17 @@ async function main() {
   const { scriptyStorageContract, scriptyBuilderContract, wethContract } =
     await utilities.deployOrGetContracts(network.name);
 
-  await storeScript(scriptyStorageContract, "gold_by_crashblossom_base_v5", "scripts/goldBase.js");
+  await storeScript(scriptyStorageContract, "gold_by_crashblossom_base_v9", "scripts/goldBase.js");
 
-  await storeScript(scriptyStorageContract, "gold_by_crashblossom_paths_v5", "scripts/paths.js", true);
+  await storeScript(scriptyStorageContract, "gold_by_crashblossom_paths_v9", "scripts/paths.js", true);
 
   await storeScript(scriptyStorageContract, "gunzipScripts-0.0.1", "scripts/gunzipScripts-0.0.1.js");
 
-  await storeScript(scriptyStorageContract, "gold_by_crashblossom_main_v5", "scripts/main.js");
+  await storeScript(scriptyStorageContract, "gold_by_crashblossom_main_v10", "scripts/main.js");
 
   const scriptRequests = [
     {
-      name: "gold_by_crashblossom_base_v5",
+      name: "gold_by_crashblossom_base_v9",
       contractAddress: scriptyStorageContract.address,
       contractData: 0,
       wrapType: 0,
@@ -99,7 +99,7 @@ async function main() {
       scriptContent: utilities.emptyBytes(),
     },
     {
-      name: "gold_by_crashblossom_paths_v5",
+      name: "gold_by_crashblossom_paths_v9",
       contractAddress: scriptyStorageContract.address,
       contractData: 0,
       wrapType: 2,
@@ -117,7 +117,7 @@ async function main() {
       scriptContent: utilities.emptyBytes(),
     },
     {
-      name: "gold_by_crashblossom_main_v5",
+      name: "gold_by_crashblossom_main_v10",
       contractAddress: scriptyStorageContract.address,
       contractData: 0,
       wrapType: 0,
@@ -162,6 +162,8 @@ async function main() {
 
   await rendererContract.setGoldContract(nftContract.address);
 
+ 
+
   const merkleTree = getMerkleRootWithDiscounts([{ address: dev.address, discountBps: 2000 }]);
 
   const Auction = await ethers.getContractFactory("DutchAuction");
@@ -175,12 +177,12 @@ async function main() {
       : utilities.addressFor(network.name, "DelegateCash")
   );
   console.log("Auction Contract is deployed", auction.address);
-  const startAmount = ethers.utils.parseEther("6");
+  const startAmount = ethers.utils.parseEther("12");
   const endAmount = ethers.utils.parseEther("0.2");
   const limit = ethers.utils.parseEther("1000");
   const refundDelayTime = 30 * 60;
   const startTime = Math.floor(Date.now() / 1000) - 100;
-  const endTime = startTime + 6 * 3600;
+  const endTime = startTime + 12 * 3600;
 
   await auction.setConfig(startAmount, endAmount, limit, refundDelayTime, startTime, endTime);
   await auction.setSignerAddress(SIGNER);
