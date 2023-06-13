@@ -155,6 +155,18 @@ contract DutchAuction is IDutchAuction, AccessControl, Pausable, ReentrancyGuard
   }
 
   /**
+   * @dev Sets the merkle root for discounts.
+   *
+   * Requirements:
+   * - Caller must have the DEFAULT_ADMIN_ROLE.
+   *
+   * @param root The new merkle root.
+   */
+  function setDiscountMerkleRoot(bytes32 root) external onlyRole(DEFAULT_ADMIN_ROLE) {
+    discountMerkleRoot = root;
+  }
+
+  /**
    * @dev Sets the address of the NFT contract.
    *
    * Requirements:

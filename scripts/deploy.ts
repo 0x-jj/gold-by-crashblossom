@@ -180,7 +180,7 @@ async function main() {
   const startAmount = ethers.utils.parseEther("12");
   const endAmount = ethers.utils.parseEther("0.2");
   const limit = ethers.utils.parseEther("1000");
-  const refundDelayTime = 30 * 60;
+  const refundDelayTime = 2 * 60;
   const startTime = Math.floor(Date.now() / 1000) - 100;
   const endTime = startTime + 12 * 3600;
 

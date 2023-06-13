@@ -16,6 +16,7 @@ error MaxSupplyReached();
 error ClaimingTooEarly();
 error ClaimingTooLate();
 error AlreadyClaimed();
+error SupplyLocked();
 
 interface IGoldRenderer {
   function tokenURI(uint256 tokenId) external view returns (string memory);
@@ -30,6 +31,7 @@ contract Gold is ERC721, PaymentSplitter, AccessControl, Ownable, Pausable {
 
   uint256 public currentTokenId = 0;
   uint256 public tokenIdMax;
+  bool public supplyLocked;
 
   address public minter;
 
@@ -128,6 +130,16 @@ contract Gold is ERC721, PaymentSplitter, AccessControl, Ownable, Pausable {
 
   function setRendererAddress(address _renderer) external onlyRole(DEFAULT_ADMIN_ROLE) {
     goldRenderer = IGoldRenderer(_renderer);
+  }
+
+  function setMaxTokenId(uint256 newMax) external onlyRole(DEFAULT_ADMIN_ROLE) {
+    if (supplyLocked) revert SupplyLocked();
+    require(newMax >= currentTokenId, "New max must be greater than or equal to current token ID");
+    tokenIdMax = newMax;
+  }
+
+  function lockSupply() external onlyRole(DEFAULT_ADMIN_ROLE) {
+    supplyLocked = true;
   }
 
   function mint(address to) public whenNotPaused {
