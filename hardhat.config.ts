@@ -57,7 +57,7 @@ module.exports = {
       blockGasLimit: 500000000,
       timeout: 100000000,
       accounts: {
-        count: 100,
+        count: 1000,
         mnemonic: SEED_PHRASE,
       },
     },
@@ -84,6 +84,7 @@ module.exports = {
     enabled: true,
     gasPrice: 30,
     currency: "USD",
+    coinmarketcap: process.env.COINMARKETCAP_API_KEY,
   },
   etherscan: {
     apiKey: process.env.ETHERSCAN_API_KEY,

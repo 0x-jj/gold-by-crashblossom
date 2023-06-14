@@ -29,18 +29,19 @@ export function getMerkleRoot(addresses: string[]) {
 }
 
 export function getMerkleRootWithDiscounts(addresses: { address: string; discountBps: number }[]) {
-  const hashes = addresses.map((data) =>
-    ethers.utils.solidityKeccak256(
+  const getLeaf = (addy: string, bps: number) => {
+    return ethers.utils.solidityKeccak256(
       ["address", "uint16"],
-      [ethers.utils.getAddress(data.address), String(data.discountBps)]
-    )
-  );
+      [ethers.utils.getAddress(addy), String(bps)]
+    );
+  };
+  const hashes = addresses.map((data) => getLeaf(data.address, data.discountBps));
 
   const tree = new MerkleTree(hashes, keccak256, {
     sortPairs: true,
   });
 
-  return { tree, root: tree.getHexRoot() };
+  return { tree, root: tree.getHexRoot(), getLeaf };
 }
 
 export function getStringOfNKilobytes(n: number) {
