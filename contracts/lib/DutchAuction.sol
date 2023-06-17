@@ -278,6 +278,7 @@ contract DutchAuction is IDutchAuction, AccessControl, Pausable, ReentrancyGuard
   /// @param qty Amount of tokens to purchase
   /// @param deadline Timestamp when the signature expires
   /// @param signature Signature to verify user's purchase
+  /// @param vaultAddress Address of vault being delegated for
   function bid(
     uint32 qty,
     uint256 deadline,
@@ -361,10 +362,23 @@ contract DutchAuction is IDutchAuction, AccessControl, Pausable, ReentrancyGuard
 
   /// @notice Claim additional NFTs without additional payment
   /// @param amount Number of tokens to claim
-  function claimTokens(uint32 amount) external nonReentrant whenNotPaused validConfig validTime {
-    User storage bidder = _userData[msg.sender]; // get user's current bid total
+  /// @param vaultAddress Address to check
+  function claimTokens(uint32 amount, address vaultAddress) external nonReentrant whenNotPaused validConfig validTime {
+    address requester = msg.sender;
+
+    if (vaultAddress != address(0) && vaultAddress != msg.sender) {
+      bool isDelegateValid = delegateCash.checkDelegateForContract(
+        msg.sender,
+        vaultAddress,
+        address(nftContractAddress)
+      );
+      require(isDelegateValid, "invalid delegate-vault pairing");
+      requester = vaultAddress;
+    }
+
+    User storage bidder = _userData[requester]; // get user's current bid total
     uint256 price = getCurrentPriceInWei();
-    uint32 claimable = getClaimableTokens(msg.sender);
+    uint32 claimable = getClaimableTokens(requester);
     if (amount > claimable) amount = claimable;
     if (amount == 0) revert NothingToClaim();
 
@@ -376,20 +390,17 @@ contract DutchAuction is IDutchAuction, AccessControl, Pausable, ReentrancyGuard
       _settledPriceInWei = price;
     }
 
-    _mintTokens(msg.sender, amount);
+    _mintTokens(requester, amount);
 
-    emit Claim(msg.sender, amount);
+    emit Claim(requester, amount);
   }
 
   /// @notice Admin withdraw funds
   /// @dev Only admin can withdraw funds
   function withdrawFunds() external nonReentrant onlyRole(DEFAULT_ADMIN_ROLE) {
     if (_config.endTime >= block.timestamp) revert NotEnded();
-    if (_withdrawn) revert AlreadyWithdrawn();
-    _withdrawn = true;
 
-    uint256 amount = _totalMinted * _settledPriceInWei;
-    (bool success, ) = treasuryAddress.call{value: amount}("");
+    (bool success, ) = treasuryAddress.call{value: address(this).balance}("");
     if (!success) revert TransferFailed();
   }
 
@@ -412,8 +423,7 @@ contract DutchAuction is IDutchAuction, AccessControl, Pausable, ReentrancyGuard
   /**
    * @notice Admin-enforced claim of refunds for a list of user addresses.
    * This function is identical to `claimRefund` but allows an admin to force
-   * users to claim their refund. Can only be called after the refund delay time has passed post-auction end.
-   * Only callable by addresses with the DEFAULT_ADMIN_ROLE.
+   * users to claim their refund.
    * Note: If the function reverts with 'ClaimRefundNotReady', it means the refund delay time has not passed yet.
    * @param accounts An array of addresses for which refunds will be claimed.
    */
@@ -422,9 +432,7 @@ contract DutchAuction is IDutchAuction, AccessControl, Pausable, ReentrancyGuard
     bytes32[][] calldata proofs
   ) external nonReentrant whenNotPaused validConfig onlyRole(DEFAULT_ADMIN_ROLE) {
     if (accounts.length != proofs.length) revert InvalidProofsLength();
-    Config memory config = _config;
-    if (config.endTime + config.refundDelayTime >= block.timestamp) revert ClaimRefundNotReady();
-
+ 
     uint256 length = accounts.length;
     for (uint256 i; i != length; ++i) {
       _claimRefund(accounts[i], proofs[i]);

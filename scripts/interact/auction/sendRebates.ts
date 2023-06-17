@@ -1,0 +1,71 @@
+import { BigNumber } from "ethers";
+import { Interface } from "ethers/lib/utils";
+import { ethers } from "hardhat";
+import { discounts } from "../../../offchain/discounts";
+import { getMerkleRootWithDiscounts } from "../../../test/utils";
+
+const emptyProof = ["0x0000000000000000000000000000000000000000000000000000000000000000"];
+
+const merkleTree = getMerkleRootWithDiscounts(discounts);
+
+const auctionAddress = "0x282f7fFF971AAf234293f8C7657363842C6b20df";
+
+const bidFilter = {
+  address: auctionAddress,
+  topics: ["0x43a38e744536f08873c3f07e3c07fd5ec7024950b6c0bf43d9c0af85330b958c"],
+  fromBlock: 9185209,
+};
+
+const iface = new Interface(["event Bid(address user, uint32 qty, uint256 price)"]);
+
+type Bid = {
+  user: string;
+  qty: number;
+  price: BigNumber;
+};
+
+async function main() {
+  const Auction = await ethers.getContractAt("DutchAuction", auctionAddress);
+  const logs = await ethers.provider.getLogs(bidFilter);
+  const bids: Bid[] = logs.map((log) => {
+    const parsed = iface.parseLog(log).args;
+    return {
+      user: parsed.user,
+      qty: parsed.qty,
+      price: parsed.price,
+    };
+  });
+
+  const allAccounts = bids.map((bid) => bid.user);
+
+  console.log(`Total bids: ${bids.length}`);
+
+  const uniqueAccounts = [...new Set(allAccounts)];
+
+  console.log(`Unique accounts: ${uniqueAccounts.length}`);
+
+  const accountsToSend: string[] = [];
+  const proofsToSend: string[][] = [];
+
+  uniqueAccounts.forEach((account) => {
+    const discountDetails = discounts.find(
+      (discount) => discount.address.toLowerCase() === account.toLowerCase()
+    );
+    const leaf = merkleTree.getLeaf(account, discountDetails?.discountBps || 0);
+    const proof = merkleTree.tree.getHexProof(leaf);
+
+    accountsToSend.push(account);
+    proofsToSend.push(proof.length > 0 ? proof : emptyProof);
+  });
+
+  console.log(
+    `Accounts receiving discounts: ${proofsToSend.reduce(
+      (acc, curr) => acc + (curr === emptyProof ? 0 : 1),
+      0
+    )}`
+  );
+
+  // await Auction.refundUsers(accountsToSend, proofsToSend);
+}
+
+main();

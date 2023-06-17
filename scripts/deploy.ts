@@ -4,6 +4,7 @@ import * as utilities from "./utils";
 import { ScriptyStorage } from "../typechain-types";
 import { BigNumber } from "ethers";
 import { getMerkleRootWithDiscounts } from "../test/utils";
+import { discounts } from "../offchain/discounts";
 
 const waitIfNeeded = async (tx: any) => {
   if (tx.wait) {
@@ -162,9 +163,7 @@ async function main() {
 
   await rendererContract.setGoldContract(nftContract.address);
 
- 
-
-  const merkleTree = getMerkleRootWithDiscounts([{ address: dev.address, discountBps: 2000 }]);
+  const merkleTree = getMerkleRootWithDiscounts(discounts);
 
   const Auction = await ethers.getContractFactory("DutchAuction");
   const auction = await Auction.deploy(
@@ -179,7 +178,7 @@ async function main() {
   console.log("Auction Contract is deployed", auction.address);
   const startAmount = ethers.utils.parseEther("12");
   const endAmount = ethers.utils.parseEther("0.2");
-  const limit = ethers.utils.parseEther("1000");
+  const limit = ethers.utils.parseEther("10");
   const refundDelayTime = 2 * 60;
   const startTime = Math.floor(Date.now() / 1000) - 100;
   const endTime = startTime + 12 * 3600;
