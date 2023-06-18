@@ -112,15 +112,15 @@ contract Gold is ERC721, PaymentSplitter, AccessControl, Ownable, Pausable {
     ethReceivedCount += 1;
   }
 
-  function unpause() external onlyOwner {
+  function unpause() external onlyRole(DEFAULT_ADMIN_ROLE) {
     _unpause();
   }
 
-  function pause() external onlyOwner {
+  function pause() external onlyRole(DEFAULT_ADMIN_ROLE) {
     _pause();
   }
 
-  function setBaseTimestamp(uint256 _baseTimestamp) external onlyOwner {
+  function setBaseTimestamp(uint256 _baseTimestamp) external onlyRole(DEFAULT_ADMIN_ROLE) {
     baseTimestamp = _baseTimestamp;
   }
 
