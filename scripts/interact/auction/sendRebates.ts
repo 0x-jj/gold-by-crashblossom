@@ -51,11 +51,17 @@ async function main() {
     const discountDetails = discounts.find(
       (discount) => discount.address.toLowerCase() === account.toLowerCase()
     );
-    const leaf = merkleTree.getLeaf(account, discountDetails?.discountBps || 0);
-    const proof = merkleTree.tree.getHexProof(leaf);
+
+    let proofToSend;
+
+    if (!discountDetails) {
+      proofToSend = emptyProof;
+    } else {
+      proofToSend = merkleTree.tree.getHexProof(merkleTree.getLeaf(account, discountDetails.discountBps));
+    }
 
     accountsToSend.push(account);
-    proofsToSend.push(proof.length > 0 ? proof : emptyProof);
+    proofsToSend.push(proofToSend);
   });
 
   console.log(
