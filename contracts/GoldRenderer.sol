@@ -116,12 +116,19 @@ contract GoldRenderer is AccessControl {
 
   function numberOfBonusClusters() public view returns (uint256) {
     uint256 count = 0;
-    if (block.timestamp > 1703167200) count++; // Dec 21, 2023 (6m)
-    if (block.timestamp > 1718974800) count++; // Jun 21, 2024 (1y)
-    if (block.timestamp > 1750510800) count++; // Jun 21, 2025 (2y)
-    if (block.timestamp > 1845205200) count++; // Jun 21, 2028 (5y)
-    if (block.timestamp > 2002971600) count++; // Jun 21, 2033 (10y)
-    if (block.timestamp > 2318504400) count++; // Jun 21, 2043 (20y)
+    // if (block.timestamp > 1703167200) count++; // Dec 21, 2023 (6m)
+    // if (block.timestamp > 1718974800) count++; // Jun 21, 2024 (1y)
+    // if (block.timestamp > 1750510800) count++; // Jun 21, 2025 (2y)
+    // if (block.timestamp > 1845205200) count++; // Jun 21, 2028 (5y)
+    // if (block.timestamp > 2002971600) count++; // Jun 21, 2033 (10y)
+    // if (block.timestamp > 2318504400) count++; // Jun 21, 2043 (20y)
+
+    if (block.timestamp > 1687036463) count++; // Dec 21, 2023 (6m)
+    if (block.timestamp > 1687040063) count++; // Jun 21, 2024 (1y)
+    if (block.timestamp > 1687043663) count++; // Jun 21, 2025 (2y)
+    if (block.timestamp > 1687047263) count++; // Jun 21, 2028 (5y)
+    if (block.timestamp > 1687050863) count++; // Jun 21, 2033 (10y)
+    if (block.timestamp > 1687054463) count++; // Jun 21, 2043 (20y)
     return count;
   }
 
@@ -183,13 +190,13 @@ contract GoldRenderer is AccessControl {
       abi.encodePacked(
         constructJsScalarVar(VariableType.STRING, "w", contractAddy),
         constructJsScalarVar(VariableType.STRING, "L", contractMetricsSelector),
-        constructJsScalarVar(VariableType.STRING, "M", tokenMetricsSelector),
+        constructJsScalarVar(VariableType.STRING, "Z", tokenMetricsSelector),
         constructJsScalarVar(VariableType.NUMBER, "$", baseTimestamp),
-        constructJsScalarVar(VariableType.NUMBER, "F", royaltyPercent),
-        constructJsScalarVar(VariableType.NUMBER, "P", tokenId),
-        constructJsScalarVar(VariableType.NUMBER, "g", seedToken),
-        constructJsScalarVar(VariableType.NUMBER, "i", seedIncrement)
-       );
+        constructJsScalarVar(VariableType.NUMBER, "Q", royaltyPercent),
+        constructJsScalarVar(VariableType.NUMBER, "K", tokenId),
+        constructJsScalarVar(VariableType.NUMBER, "h", seedToken),
+        constructJsScalarVar(VariableType.NUMBER, "s", seedIncrement)
+      );
   }
 
   function tokenURI(uint256 tokenId) external view returns (string memory) {
@@ -225,7 +232,7 @@ contract GoldRenderer is AccessControl {
     requests[3].wrapType = 0; // <script>[script]</script>
     requests[3].contractAddress = scriptyStorageAddress;
 
-    requests[4].name = "gold_by_crashblossom_main_v10";
+    requests[4].name = "gold_by_crashblossom_main_v15";
     requests[4].wrapType = 0; // <script>[script]</script>
     requests[4].contractAddress = scriptyStorageAddress;
 

@@ -227,7 +227,7 @@ contract Gold is ERC721, PaymentSplitter, AccessControl, Ownable, Pausable {
       uint256 eligibleAt = lastTransferTimestamp + (6 * 30 seconds);
 
       if (block.timestamp < eligibleAt) revert ClaimingTooEarly();
-      if (block.timestamp > (eligibleAt + (24 minutes))) revert ClaimingTooLate();
+      if (block.timestamp > (eligibleAt + (24 hours))) revert ClaimingTooLate();
 
       tokenData[tokenId].held6MonthsClaimedBy = claimant;
     }
@@ -237,7 +237,7 @@ contract Gold is ERC721, PaymentSplitter, AccessControl, Ownable, Pausable {
         revert AlreadyClaimed();
       }
 
-      uint256 eligibleAt = lastTransferTimestamp + (12 * 30 minutes);
+      uint256 eligibleAt = lastTransferTimestamp + (12 * 3 minutes); // TODO change to 30
 
       if (block.timestamp < eligibleAt) revert ClaimingTooEarly();
       if (block.timestamp > (eligibleAt + (24 minutes))) revert ClaimingTooLate();

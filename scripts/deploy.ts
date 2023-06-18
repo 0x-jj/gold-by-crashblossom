@@ -87,7 +87,7 @@ async function main() {
 
   await storeScript(scriptyStorageContract, "gunzipScripts-0.0.1", "scripts/gunzipScripts-0.0.1.js");
 
-  await storeScript(scriptyStorageContract, "gold_by_crashblossom_main_v10", "scripts/main.js");
+  await storeScript(scriptyStorageContract, "gold_by_crashblossom_main_v15", "scripts/main.js");
 
   const scriptRequests = [
     {
@@ -118,7 +118,7 @@ async function main() {
       scriptContent: utilities.emptyBytes(),
     },
     {
-      name: "gold_by_crashblossom_main_v10",
+      name: "gold_by_crashblossom_main_v15",
       contractAddress: scriptyStorageContract.address,
       contractData: 0,
       wrapType: 0,
@@ -176,10 +176,10 @@ async function main() {
       : utilities.addressFor(network.name, "DelegateCash")
   );
   console.log("Auction Contract is deployed", auction.address);
-  const startAmount = ethers.utils.parseEther("12");
+  const startAmount = ethers.utils.parseEther("6");
   const endAmount = ethers.utils.parseEther("0.2");
   const limit = ethers.utils.parseEther("10");
-  const refundDelayTime = 2 * 60;
+  const refundDelayTime = 1 * 60;
   const startTime = Math.floor(Date.now() / 1000) - 100;
   const endTime = startTime + 12 * 3600;
 

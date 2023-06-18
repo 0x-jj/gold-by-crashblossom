@@ -58,7 +58,7 @@ async function main() {
 
   await storeScript(scriptyStorageContract, "gold_by_crashblossom_paths_v9", "../scripts/paths.js", true);
 
-  await storeScript(scriptyStorageContract, "gold_by_crashblossom_main_v10", "../scripts/main.js");
+  await storeScript(scriptyStorageContract, "gold_by_crashblossom_main_v15", "../scripts/main.js");
 }
 
 main();

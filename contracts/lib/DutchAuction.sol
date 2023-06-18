@@ -363,7 +363,10 @@ contract DutchAuction is IDutchAuction, AccessControl, Pausable, ReentrancyGuard
   /// @notice Claim additional NFTs without additional payment
   /// @param amount Number of tokens to claim
   /// @param vaultAddress Address to check
-  function claimTokens(uint32 amount, address vaultAddress) external nonReentrant whenNotPaused validConfig validTime {
+  function claimTokens(
+    uint32 amount,
+    address vaultAddress
+  ) external nonReentrant whenNotPaused validConfig validTime {
     address requester = msg.sender;
 
     if (vaultAddress != address(0) && vaultAddress != msg.sender) {
@@ -413,7 +416,7 @@ contract DutchAuction is IDutchAuction, AccessControl, Pausable, ReentrancyGuard
   function claimRefund(
     address vaultAddress,
     bytes32[] calldata proof
-  ) external nonReentrant whenNotPaused validConfig {
+  ) external nonReentrant whenNotPaused validConfig onlyRole(DEFAULT_ADMIN_ROLE) {
     Config memory config = _config;
     if (config.endTime + config.refundDelayTime >= block.timestamp) revert ClaimRefundNotReady();
 
@@ -432,7 +435,7 @@ contract DutchAuction is IDutchAuction, AccessControl, Pausable, ReentrancyGuard
     bytes32[][] calldata proofs
   ) external nonReentrant whenNotPaused validConfig onlyRole(DEFAULT_ADMIN_ROLE) {
     if (accounts.length != proofs.length) revert InvalidProofsLength();
- 
+
     uint256 length = accounts.length;
     for (uint256 i; i != length; ++i) {
       _claimRefund(accounts[i], proofs[i]);
