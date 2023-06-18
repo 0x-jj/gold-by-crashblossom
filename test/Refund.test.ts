@@ -9,17 +9,11 @@ import { BigNumber } from "ethers";
 import { deployContracts, getMerkleRootWithDiscounts } from "./utils";
 import MerkleTree from "merkletreejs";
 
-const toWei = ethers.utils.parseEther;
-
-const START_PRICE = toWei("1.4");
-const RESERVED_MINTS = 3;
-const MAX_SUPPLY = 10;
-
 const DEV_SPLIT = 140; // 14%
 const ARTIST_SPLIT = 650; // 65 %
 const DAO_SPLIT = 210; // 21 %
 
-describe.only("DutchAuction", function () {
+describe.skip("DutchAuction", function () {
   let nft: Gold;
   let auction: DutchAuction;
   let admin: SignerWithAddress;

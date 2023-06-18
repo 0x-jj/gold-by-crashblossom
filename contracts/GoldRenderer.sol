@@ -116,19 +116,12 @@ contract GoldRenderer is AccessControl {
 
   function numberOfBonusClusters() public view returns (uint256) {
     uint256 count = 0;
-    // if (block.timestamp > 1703167200) count++; // Dec 21, 2023 (6m)
-    // if (block.timestamp > 1718974800) count++; // Jun 21, 2024 (1y)
-    // if (block.timestamp > 1750510800) count++; // Jun 21, 2025 (2y)
-    // if (block.timestamp > 1845205200) count++; // Jun 21, 2028 (5y)
-    // if (block.timestamp > 2002971600) count++; // Jun 21, 2033 (10y)
-    // if (block.timestamp > 2318504400) count++; // Jun 21, 2043 (20y)
-
-    if (block.timestamp > 1687036463) count++; // Dec 21, 2023 (6m)
-    if (block.timestamp > 1687040063) count++; // Jun 21, 2024 (1y)
-    if (block.timestamp > 1687043663) count++; // Jun 21, 2025 (2y)
-    if (block.timestamp > 1687047263) count++; // Jun 21, 2028 (5y)
-    if (block.timestamp > 1687050863) count++; // Jun 21, 2033 (10y)
-    if (block.timestamp > 1687054463) count++; // Jun 21, 2043 (20y)
+    if (block.timestamp > 1703167200) count++; // Dec 21, 2023 (6m)
+    if (block.timestamp > 1718974800) count++; // Jun 21, 2024 (1y)
+    if (block.timestamp > 1750510800) count++; // Jun 21, 2025 (2y)
+    if (block.timestamp > 1845205200) count++; // Jun 21, 2028 (5y)
+    if (block.timestamp > 2002971600) count++; // Jun 21, 2033 (10y)
+    if (block.timestamp > 2318504400) count++; // Jun 21, 2043 (20y)
     return count;
   }
 
@@ -140,10 +133,12 @@ contract GoldRenderer is AccessControl {
 
     return
       abi.encodePacked(
-        '{"name":"TEST #',
+        '{"name":"GOLD #',
         tid,
-        '", "description":"Test description.",',
-        '"external_url": "https://making.gold/gallery/',
+        '", "description":"GOLD is a dynamic crypto art series released in partnership with Fingerprints DAO. The artworks change in response to the series',
+        "' ",
+        'own live market activity. The actions of GOLD collectors are part of this ever-changing artwork, where prices, levels of activity and on-chain provenance define the art itself.",',
+        '"external_url": "https://making.gold/token/',
         tid,
         '", "image": "',
         baseImageURI,
@@ -188,10 +183,10 @@ contract GoldRenderer is AccessControl {
   ) internal pure returns (bytes memory) {
     return
       abi.encodePacked(
-        constructJsScalarVar(VariableType.STRING, "w", contractAddy),
-        constructJsScalarVar(VariableType.STRING, "L", contractMetricsSelector),
+        constructJsScalarVar(VariableType.STRING, "L", contractAddy),
+        constructJsScalarVar(VariableType.STRING, "w", contractMetricsSelector),
         constructJsScalarVar(VariableType.STRING, "Z", tokenMetricsSelector),
-        constructJsScalarVar(VariableType.NUMBER, "$", baseTimestamp),
+        constructJsScalarVar(VariableType.NUMBER, "E", baseTimestamp),
         constructJsScalarVar(VariableType.NUMBER, "Q", royaltyPercent),
         constructJsScalarVar(VariableType.NUMBER, "K", tokenId),
         constructJsScalarVar(VariableType.NUMBER, "h", seedToken),
@@ -232,7 +227,7 @@ contract GoldRenderer is AccessControl {
     requests[3].wrapType = 0; // <script>[script]</script>
     requests[3].contractAddress = scriptyStorageAddress;
 
-    requests[4].name = "gold_by_crashblossom_main_v15";
+    requests[4].name = "gold_by_crashblossom_main_v16";
     requests[4].wrapType = 0; // <script>[script]</script>
     requests[4].contractAddress = scriptyStorageAddress;
 

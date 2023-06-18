@@ -35,7 +35,7 @@ contract Gold is ERC721, PaymentSplitter, AccessControl, Ownable, Pausable {
 
   address public minter;
 
-  IGoldRenderer public goldRenderer;
+  IGoldRenderer public renderer;
   IERC20 public wethContract;
 
   struct TokenData {
@@ -97,7 +97,7 @@ contract Gold is ERC721, PaymentSplitter, AccessControl, Ownable, Pausable {
     }
 
     wethContract = IERC20(wethContract_);
-    goldRenderer = IGoldRenderer(goldRenderer_);
+    renderer = IGoldRenderer(goldRenderer_);
     baseTimestamp = block.timestamp;
     tokenIdMax = tokenIdMax_;
     delegateCash = IDelegateCash(delegateCash_);
@@ -129,7 +129,7 @@ contract Gold is ERC721, PaymentSplitter, AccessControl, Ownable, Pausable {
   }
 
   function setRendererAddress(address _renderer) external onlyRole(DEFAULT_ADMIN_ROLE) {
-    goldRenderer = IGoldRenderer(_renderer);
+    renderer = IGoldRenderer(_renderer);
   }
 
   function setMaxTokenId(uint256 newMax) external onlyRole(DEFAULT_ADMIN_ROLE) {
@@ -144,7 +144,7 @@ contract Gold is ERC721, PaymentSplitter, AccessControl, Ownable, Pausable {
 
   function mint(address to) public whenNotPaused {
     if (currentTokenId >= tokenIdMax) revert MaxSupplyReached();
-    // TODO: UNCOMMENT if (!(_msgSender() != minter || _msgSender() != owner())) revert NotAuthorized();
+    if (!(_msgSender() == minter || _msgSender() == owner())) revert NotAuthorized();
 
     uint256 tokenId = currentTokenId;
     currentTokenId++;
@@ -155,19 +155,12 @@ contract Gold is ERC721, PaymentSplitter, AccessControl, Ownable, Pausable {
     _safeMint(to, tokenId);
   }
 
-  // TODO: Remove
-  function mintMany(address to, uint256 count) external {
-    for (uint256 i = 0; i < count; i++) {
-      this.mint(to);
-    }
-  }
-
   function totalSupply() public view returns (uint256) {
     return currentTokenId;
   }
 
   function tokenURI(uint256 tokenId) public view override returns (string memory) {
-    return goldRenderer.tokenURI(tokenId);
+    return renderer.tokenURI(tokenId);
   }
 
   function _afterTokenTransfer(address from, address, uint256 tokenId, uint256) internal override {
@@ -214,7 +207,6 @@ contract Gold is ERC721, PaymentSplitter, AccessControl, Ownable, Pausable {
       claimant = vaultAddress;
     }
 
-    // TODO: CHANGE MINS/SECS TO DAYS
     if (ownerOf(tokenId) != claimant) revert NotAuthorized();
 
     uint256 lastTransferTimestamp = latestTransferTimestamp(tokenData[tokenId]);
@@ -224,10 +216,10 @@ contract Gold is ERC721, PaymentSplitter, AccessControl, Ownable, Pausable {
         revert AlreadyClaimed();
       }
 
-      uint256 eligibleAt = lastTransferTimestamp + (6 * 30 seconds);
+      uint256 eligibleAt = lastTransferTimestamp + (6 * 30 days);
 
       if (block.timestamp < eligibleAt) revert ClaimingTooEarly();
-      if (block.timestamp > (eligibleAt + (24 hours))) revert ClaimingTooLate();
+      if (block.timestamp > (eligibleAt + (24 days))) revert ClaimingTooLate();
 
       tokenData[tokenId].held6MonthsClaimedBy = claimant;
     }
@@ -237,10 +229,10 @@ contract Gold is ERC721, PaymentSplitter, AccessControl, Ownable, Pausable {
         revert AlreadyClaimed();
       }
 
-      uint256 eligibleAt = lastTransferTimestamp + (12 * 3 minutes); // TODO change to 30
+      uint256 eligibleAt = lastTransferTimestamp + (12 * 30 days);
 
       if (block.timestamp < eligibleAt) revert ClaimingTooEarly();
-      if (block.timestamp > (eligibleAt + (24 minutes))) revert ClaimingTooLate();
+      if (block.timestamp > (eligibleAt + (24 days))) revert ClaimingTooLate();
 
       tokenData[tokenId].held12MonthsClaimedBy = claimant;
     }
@@ -250,10 +242,10 @@ contract Gold is ERC721, PaymentSplitter, AccessControl, Ownable, Pausable {
         revert AlreadyClaimed();
       }
 
-      uint256 eligibleAt = lastTransferTimestamp + (24 * 30 minutes);
+      uint256 eligibleAt = lastTransferTimestamp + (24 * 30 days);
 
       if (block.timestamp < eligibleAt) revert ClaimingTooEarly();
-      if (block.timestamp > (eligibleAt + (24 minutes))) revert ClaimingTooLate();
+      if (block.timestamp > (eligibleAt + (24 days))) revert ClaimingTooLate();
 
       tokenData[tokenId].held24MonthsClaimedBy = claimant;
     }
@@ -263,10 +255,10 @@ contract Gold is ERC721, PaymentSplitter, AccessControl, Ownable, Pausable {
         revert AlreadyClaimed();
       }
 
-      uint256 eligibleAt = lastTransferTimestamp + (60 * 30 minutes);
+      uint256 eligibleAt = lastTransferTimestamp + (60 * 30 days);
 
       if (block.timestamp < eligibleAt) revert ClaimingTooEarly();
-      if (block.timestamp > (eligibleAt + (24 minutes))) revert ClaimingTooLate();
+      if (block.timestamp > (eligibleAt + (24 days))) revert ClaimingTooLate();
 
       tokenData[tokenId].held60MonthsClaimedBy = claimant;
     }
@@ -276,10 +268,10 @@ contract Gold is ERC721, PaymentSplitter, AccessControl, Ownable, Pausable {
         revert AlreadyClaimed();
       }
 
-      uint256 eligibleAt = lastTransferTimestamp + (120 * 30 minutes);
+      uint256 eligibleAt = lastTransferTimestamp + (120 * 30 days);
 
       if (block.timestamp < eligibleAt) revert ClaimingTooEarly();
-      if (block.timestamp > (eligibleAt + (24 minutes))) revert ClaimingTooLate();
+      if (block.timestamp > (eligibleAt + (24 days))) revert ClaimingTooLate();
 
       tokenData[tokenId].held120MonthsClaimedBy = claimant;
     }
@@ -289,10 +281,10 @@ contract Gold is ERC721, PaymentSplitter, AccessControl, Ownable, Pausable {
         revert AlreadyClaimed();
       }
 
-      uint256 eligibleAt = lastTransferTimestamp + (240 * 30 minutes);
+      uint256 eligibleAt = lastTransferTimestamp + (240 * 30 days);
 
       if (block.timestamp < eligibleAt) revert ClaimingTooEarly();
-      if (block.timestamp > (eligibleAt + (24 minutes))) revert ClaimingTooLate();
+      if (block.timestamp > (eligibleAt + (24 days))) revert ClaimingTooLate();
 
       tokenData[tokenId].held240MonthsClaimedBy = claimant;
     }
@@ -333,7 +325,7 @@ contract Gold is ERC721, PaymentSplitter, AccessControl, Ownable, Pausable {
       tokenData[tokenId].mintTimestamp,
       tokenData[tokenId].seed,
       balanceOf(ownerOf(tokenId)),
-      goldRenderer.numberOfBonusPlates(tokenId)
+      renderer.numberOfBonusPlates(tokenId)
     );
   }
 

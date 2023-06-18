@@ -1,6 +1,6 @@
 import { ethers } from "hardhat";
 
-const nftContractAddress = "0x23be477e1558bc46374410239277e245ddadbe21";
+const nftContractAddress = "0x7D96270c72BAD83E1c9F35cdbfcf67E9c38dA309";
 
 const newTimestamp = 1687032863;
 async function main() {
