@@ -4,7 +4,7 @@ import * as utilities from "../utils";
 import { ScriptyStorage } from "../../typechain-types";
 import { BigNumber } from "ethers";
 
-const scriptyStorage = "0xEA5cD8A8D4eFdA42266E7B9139F8d80915A56daf";
+const scriptyStorage = "0x096451F43800f207FC32B4FF86F286EdaF736eE3";
 
 const waitIfNeeded = async (tx: any) => {
   if (tx.wait) {
@@ -55,6 +55,8 @@ async function main() {
   const scriptyStorageContract = await ethers.getContractAt("ScriptyStorage", scriptyStorage);
 
   await storeScript(scriptyStorageContract, "crashblossom_gold_base", "../scripts/goldBase.js");
+
+  await storeScript(scriptyStorageContract, "gunzipScripts-0.0.1", "../scripts/gunzipScripts-0.0.1.js");
 
   await storeScript(scriptyStorageContract, "crashblossom_gold_paths", "../scripts/paths.js", true);
 
