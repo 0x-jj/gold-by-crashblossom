@@ -1,6 +1,6 @@
 import { ethers } from "hardhat";
 
-const contractAddress = "0x1a8e7571983c60a93ec1a9366662970f95c80690";
+const contractAddress = "0x3aA7c9A56F90b73bF3583AD3F4c47BFC1BA2781B";
 
 async function main() {
   const auction = await ethers.getContractAt("DutchAuction", contractAddress);

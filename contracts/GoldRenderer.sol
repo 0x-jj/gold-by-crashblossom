@@ -135,9 +135,11 @@ contract GoldRenderer is AccessControl {
       abi.encodePacked(
         '{"name":"GOLD #',
         tid,
-        '", "description":"GOLD is a dynamic crypto art series released in partnership with Fingerprints DAO. The artworks change in response to the series',
-        "' ",
-        'own live market activity. The actions of GOLD collectors are part of this ever-changing artwork, where prices, levels of activity and on-chain provenance define the art itself.",',
+        '", "description":"GOLD is a dynamic cryptoart series where the artworks change in response to the collection',
+        "'s own live market activity. The actions of GOLD collectors are part of this ever-changing artwork, where prices, levels of activity and on-chain provenance define the art itself.\\n\\n",
+        "How does the market affect the way we see art? Does the sale price of an NFT change our perception of it? In GOLD, market factors literally influence the appearance of the dynamic imagery. From a sale to a listing, from the amount of time an artwork is held to whether it has recently been flipped, all this data is recorded by the contract and reflected live in each GOLD piece.\\n\\nGOLD is an artistic exploration of NFT market behaviour. It explores how we see in digital environments, and how market networks influence how we see. The full spectrum of possibilities for GOLD will take years to reveal.\\n\\nThe series is 100% on-chain - the artworks are composed and rendered directly from the blockchain - with live data streamed from an Ethereum node. Viewers can change the node by pressing",
+        " 'G'.",
+        '",',
         '"external_url": "https://making.gold/token/',
         tid,
         '", "image": "',
@@ -185,12 +187,12 @@ contract GoldRenderer is AccessControl {
       abi.encodePacked(
         constructJsScalarVar(VariableType.STRING, "L", contractAddy),
         constructJsScalarVar(VariableType.STRING, "w", contractMetricsSelector),
-        constructJsScalarVar(VariableType.STRING, "Z", tokenMetricsSelector),
-        constructJsScalarVar(VariableType.NUMBER, "E", baseTimestamp),
-        constructJsScalarVar(VariableType.NUMBER, "Q", royaltyPercent),
-        constructJsScalarVar(VariableType.NUMBER, "K", tokenId),
-        constructJsScalarVar(VariableType.NUMBER, "h", seedToken),
-        constructJsScalarVar(VariableType.NUMBER, "s", seedIncrement)
+        constructJsScalarVar(VariableType.STRING, "X", tokenMetricsSelector),
+        constructJsScalarVar(VariableType.NUMBER, "$", baseTimestamp),
+        constructJsScalarVar(VariableType.NUMBER, "U", royaltyPercent),
+        constructJsScalarVar(VariableType.NUMBER, "H", tokenId),
+        constructJsScalarVar(VariableType.NUMBER, "g", seedToken),
+        constructJsScalarVar(VariableType.NUMBER, "f", seedIncrement)
       );
   }
 
@@ -203,7 +205,7 @@ contract GoldRenderer is AccessControl {
 
     uint256 baseTimestamp = goldContract.baseTimestamp();
 
-    requests[0].name = "gold_by_crashblossom_base_v9";
+    requests[0].name = "crashblossom_gold_base";
     requests[0].wrapType = 0; // <script>[script]</script>
     requests[0].contractAddress = scriptyStorageAddress;
 
@@ -219,7 +221,7 @@ contract GoldRenderer is AccessControl {
       toString(tokenSeedIncrement)
     );
 
-    requests[2].name = "gold_by_crashblossom_paths_v9";
+    requests[2].name = "crashblossom_gold_paths";
     requests[2].wrapType = 2;
     requests[2].contractAddress = scriptyStorageAddress;
 
@@ -227,7 +229,7 @@ contract GoldRenderer is AccessControl {
     requests[3].wrapType = 0; // <script>[script]</script>
     requests[3].contractAddress = scriptyStorageAddress;
 
-    requests[4].name = "gold_by_crashblossom_main_v16";
+    requests[4].name = "crashblossom_gold_main";
     requests[4].wrapType = 0; // <script>[script]</script>
     requests[4].contractAddress = scriptyStorageAddress;
 

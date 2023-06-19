@@ -54,11 +54,11 @@ async function storeScript(
 async function main() {
   const scriptyStorageContract = await ethers.getContractAt("ScriptyStorage", scriptyStorage);
 
-  await storeScript(scriptyStorageContract, "gold_by_crashblossom_base_v9", "../scripts/goldBase.js");
+  await storeScript(scriptyStorageContract, "crashblossom_gold_base", "../scripts/goldBase.js");
 
-  await storeScript(scriptyStorageContract, "gold_by_crashblossom_paths_v9", "../scripts/paths.js", true);
+  await storeScript(scriptyStorageContract, "crashblossom_gold_paths", "../scripts/paths.js", true);
 
-  await storeScript(scriptyStorageContract, "gold_by_crashblossom_main_v16", "../scripts/main.js");
+  await storeScript(scriptyStorageContract, "crashblossom_gold_main", "../scripts/main.js");
 }
 
 main();

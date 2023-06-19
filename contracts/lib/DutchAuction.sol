@@ -315,7 +315,7 @@ contract DutchAuction is IDutchAuction, AccessControl, Pausable, ReentrancyGuard
     address recoveredSigner = ECDSA.recover(hash, signature);
     if (signerAddress != recoveredSigner) revert InvalidSignature();
 
-    uint32 available = nftContractAddress.tokenIdMax() - uint16(nftContractAddress.currentTokenId());
+    uint32 available = nftContractAddress.maxSupply() - uint16(nftContractAddress.totalSupply());
 
     if (qty > available) {
       revert MaxSupplyReached();
@@ -356,7 +356,7 @@ contract DutchAuction is IDutchAuction, AccessControl, Pausable, ReentrancyGuard
     User storage bidder = _userData[user]; // get user's current bid total
     uint256 price = getCurrentPriceInWei();
     claimable = uint32(bidder.contribution / price) - bidder.tokensBidded;
-    uint32 available = nftContractAddress.tokenIdMax() - uint16(nftContractAddress.currentTokenId());
+    uint32 available = nftContractAddress.maxSupply() - uint16(nftContractAddress.totalSupply());
     if (claimable > available) claimable = available;
   }
 
@@ -459,7 +459,7 @@ contract DutchAuction is IDutchAuction, AccessControl, Pausable, ReentrancyGuard
 
     uint256 discountedCost = cost;
 
-    uint16[4] memory discountBps = [2500, 2250, 2000, 1000];
+    uint16[5] memory discountBps = [2500, 2250, 2000, 1500, 1000];
 
     for (uint256 i = 0; i < discountBps.length; i++) {
       bytes32 leaf = keccak256(abi.encodePacked(buyer, discountBps[i]));

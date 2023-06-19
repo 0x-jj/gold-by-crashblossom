@@ -64,7 +64,14 @@ async function main() {
     }
   }
 
+  console.log("Writing json");
   fs.writeFileSync("snapshot.json", JSON.stringify(addressesWithBps, null, 2));
+
+  console.log("Writing csv");
+  fs.appendFileSync("snapshot.csv", "address,discountPct\n");
+  for (const { address, discountBps } of addressesWithBps) {
+    fs.appendFileSync("snapshot.csv", `${address},${discountBps / 100}\n`);
+  }
 }
 
 main().then(console.log);

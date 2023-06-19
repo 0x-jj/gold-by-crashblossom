@@ -248,7 +248,7 @@ export const additionalDiscounts = [
     address: "0x3a3Da350FD33a1854bEaeab086261c848526811b",
   },
   {
-    bps: 2000,
+    bps: 2500,
     address: "0x71042C2a74bBc93ce9b8d4Eb6b42fc6f07EF31d5",
   },
   {
@@ -273,7 +273,11 @@ export const additionalDiscounts = [
   },
   {
     bps: 2000,
-    address: "0x6D3a5fB58B7B33BB3ED8Dc28010941F6405033D6",
+    address: "0xAA362E65Be54Bf37289D50bd558436C9A6d90AbA",
+  },
+  {
+    bps: 2000,
+    address: "0x91364516D3CAD16E1666261dbdbb39c881Dbe9eE",
   },
 ];
 

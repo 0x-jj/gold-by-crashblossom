@@ -8,12 +8,12 @@ const emptyProof = ["0x000000000000000000000000000000000000000000000000000000000
 
 const merkleTree = getMerkleRootWithDiscounts(discounts);
 
-const auctionAddress = "0x282f7fFF971AAf234293f8C7657363842C6b20df";
+const auctionAddress = "0x4aC32438ABAfb7f6a2a96EcdEFe1D73cA266EF7E";
 
 const bidFilter = {
   address: auctionAddress,
   topics: ["0x43a38e744536f08873c3f07e3c07fd5ec7024950b6c0bf43d9c0af85330b958c"],
-  fromBlock: 9185209,
+  fromBlock: 9203913,
 };
 
 const iface = new Interface(["event Bid(address user, uint32 qty, uint256 price)"]);
@@ -71,7 +71,7 @@ async function main() {
     )}`
   );
 
-  // await Auction.refundUsers(accountsToSend, proofsToSend);
+  await Auction.refundUsers(accountsToSend, proofsToSend);
 }
 
 main();

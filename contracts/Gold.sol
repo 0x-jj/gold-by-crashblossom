@@ -29,8 +29,8 @@ interface IGoldRenderer {
 contract Gold is ERC721, PaymentSplitter, AccessControl, Ownable, Pausable {
   using SafeCast for uint256;
 
-  uint256 public currentTokenId = 0;
-  uint256 public tokenIdMax;
+  uint256 public totalSupply = 0;
+  uint256 public maxSupply;
   bool public supplyLocked;
 
   address public minter;
@@ -88,7 +88,7 @@ contract Gold is ERC721, PaymentSplitter, AccessControl, Ownable, Pausable {
     address[] memory admins_,
     address wethContract_,
     address goldRenderer_,
-    uint256 tokenIdMax_,
+    uint256 maxSupply_,
     address delegateCash_
   ) PaymentSplitter(payees, shares) ERC721("GOLD", "GOLD") {
     _grantRole(DEFAULT_ADMIN_ROLE, _msgSender());
@@ -99,7 +99,7 @@ contract Gold is ERC721, PaymentSplitter, AccessControl, Ownable, Pausable {
     wethContract = IERC20(wethContract_);
     renderer = IGoldRenderer(goldRenderer_);
     baseTimestamp = block.timestamp;
-    tokenIdMax = tokenIdMax_;
+    maxSupply = maxSupply_;
     delegateCash = IDelegateCash(delegateCash_);
   }
 
@@ -132,31 +132,21 @@ contract Gold is ERC721, PaymentSplitter, AccessControl, Ownable, Pausable {
     renderer = IGoldRenderer(_renderer);
   }
 
-  function setMaxTokenId(uint256 newMax) external onlyRole(DEFAULT_ADMIN_ROLE) {
-    if (supplyLocked) revert SupplyLocked();
-    require(newMax >= currentTokenId, "New max must be greater than or equal to current token ID");
-    tokenIdMax = newMax;
-  }
-
-  function lockSupply() external onlyRole(DEFAULT_ADMIN_ROLE) {
-    supplyLocked = true;
+  function endMint() external onlyRole(DEFAULT_ADMIN_ROLE) {
+    maxSupply = totalSupply;
   }
 
   function mint(address to) public whenNotPaused {
-    if (currentTokenId >= tokenIdMax) revert MaxSupplyReached();
+    if (totalSupply >= maxSupply) revert MaxSupplyReached();
     if (!(_msgSender() == minter || _msgSender() == owner())) revert NotAuthorized();
 
-    uint256 tokenId = currentTokenId;
-    currentTokenId++;
+    uint256 tokenId = totalSupply;
+    totalSupply++;
     tokenData[tokenId].mintTimestamp = block.timestamp;
     tokenData[tokenId].seed = keccak256(
       abi.encodePacked(blockhash(block.number - 1), block.number, block.timestamp, _msgSender(), tokenId)
     );
     _safeMint(to, tokenId);
-  }
-
-  function totalSupply() public view returns (uint256) {
-    return currentTokenId;
   }
 
   function tokenURI(uint256 tokenId) public view override returns (string memory) {
@@ -312,7 +302,7 @@ contract Gold is ERC721, PaymentSplitter, AccessControl, Ownable, Pausable {
       getHolderCount(),
       ethReceipts,
       wethReceipts,
-      currentTokenId
+      totalSupply
     );
   }
 
@@ -331,8 +321,8 @@ contract Gold is ERC721, PaymentSplitter, AccessControl, Ownable, Pausable {
 
   function getHolderCount() internal view returns (uint256) {
     uint256 count = 0;
-    address[] memory seen = new address[](currentTokenId);
-    for (uint256 i = 0; i < currentTokenId; i++) {
+    address[] memory seen = new address[](totalSupply);
+    for (uint256 i = 0; i < totalSupply; i++) {
       address owner = ownerOf(i);
       if (findElement(seen, owner) == false) {
         count++;

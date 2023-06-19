@@ -1,6 +1,6 @@
 import { ethers } from "hardhat";
 
-const nftContractAddress = "0x7D96270c72BAD83E1c9F35cdbfcf67E9c38dA309";
+const nftContractAddress = "0xa2b0eddf6021ae5db359068ed1926cfc4aa6f15e";
 
 async function main() {
   const [dev, artist, dao] = await ethers.getSigners();
