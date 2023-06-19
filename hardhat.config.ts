@@ -76,7 +76,7 @@ module.exports = {
       url: `https://eth-mainnet.alchemyapi.io/v2/${ALCHEMY_KEY}`,
       accounts: {
         count: 10,
-        initialIndex: 4,
+        initialIndex: 0,
         mnemonic: SEED_PHRASE,
       },
       gasMultiplier: 1.05,
